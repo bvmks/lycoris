@@ -12,23 +12,39 @@
 
 #include <time.h>
 
-#define _LIBLYC_TMST_T unsigned long
+#define _MS_TMST_T unsigned long
 #define _MS_TYPE_T unsigned short
-#define _LIBLYC_HASH_T int
+#define _MS_CTRL_T unsigned short
+#define _MS_HASH_T int
 
 #define _LYC_HEADER_IN(type, name) type name;
 
-#define _HEADER_LIST \
+
+#define _GEN_HEADER_LIST \
+        _LYC_HEADER_IN(_MS_TYPE_T, type)
+
+#define _MSG_HEADER_LIST \
         _LYC_HEADER_IN(_MS_TYPE_T, type)\
-        _LYC_HEADER_IN(_LIBLYC_TMST_T, timestamp)
+        _LYC_HEADER_IN(_MS_TMST_T, timestamp)
+
+#define _CTR_HEADER_LIST \
+        _LYC_HEADER_IN(_MS_TYPE_T, type)\
+        _LYC_HEADER_IN(_MS_CTRL_T, ctrl)
 
 /*
- *  basic MS protocol header
+ *  basic MS header
  */
-struct ms_msg_header {
-    _HEADER_LIST
+struct ms_basic_header {
+    _GEN_HEADER_LIST
 };
 
+struct ms_msg_header {
+    _MSG_HEADER_LIST
+};
+
+struct ms_ctrl_header {
+    _CTR_HEADER_LIST
+};
 
 #undef _LYC_HEADER_IN 
 #define _LYC_HEADER_IN(type, ...) sizeof(type) +
@@ -39,11 +55,18 @@ struct ipv4_address {
 };
 
 enum {
-    ms_header_len = (_HEADER_LIST 0)
+    ms_basic_header_len = (_GEN_HEADER_LIST 0),
+    ms_msg_header_len =   (_MSG_HEADER_LIST 0),
+    ms_ctr_header_len =   (_CTR_HEADER_LIST 0),
 };
 
 enum ms_msg_type {
-    message = 0
+    message = 0,
+    ctrl = 1
+};
+
+enum ms_ctrl_cmd {
+    acknowledge = 0
 };
 
 /*
@@ -62,7 +85,7 @@ int ms_unpack_header(void* src, struct ms_msg_header* dst);
 /*
  *  returns time in milliseconds since Epoch
 */
-_LIBLYC_TMST_T get_timestamp();
+_MS_TMST_T get_timestamp();
 
 
 #endif // !_LIBLYC_H

@@ -3,6 +3,12 @@
 #include <arpa/inet.h>
 
 #include "ms_communicate.h"
+#include "crc32.h"
+
+int ms_crc32_check(char *buf, int buf_len)
+{
+    return CRC32_VALID != crc32(buf, buf_len);
+}
 
 int ms_send(int sockfd, struct ipv4_address *dst, unsigned short msg_type, char *msg, int msg_len)
 {

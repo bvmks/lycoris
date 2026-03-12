@@ -16,7 +16,7 @@ enum {
  *  expects last 4 bytes to be a crc32 hash of all frame
  *  returns 0 on success, -1 otherwise
  */
-int ms_integrity_check(char* buf, int buf_len);
+int ms_crc32_check(char* buf, int buf_len);
 
 /*
 *   packs the msg and ms_msg_header and then

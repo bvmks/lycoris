@@ -1,5 +1,5 @@
-#ifndef _LYC_CRC32_H
-#define _LYC_CRC32_H
+#ifndef __CRC32_H
+#define __CRC32_H
 
 #define CRC32_POLY  0xEDB88320ul
 #define CRC32_START 0xFFFFFFFFul
