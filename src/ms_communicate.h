@@ -7,7 +7,10 @@
 #include "ms_packets.h"
 #include "liblyc.h"
 
-
+enum {
+    ms_packet_size = 508,
+    ms_port        = 24880
+};
 
 /*
 *   packs the msg and ms_msg_header and then

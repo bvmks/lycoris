@@ -22,7 +22,6 @@
 
 #define _HEADER_LIST \
         _LYC_HEADER_IN(_LIBLYC_MESG_T, type)\
-        _LYC_HEADER_IN(_LIBLYC_HASH_T, hash)\
         _LYC_HEADER_IN(_LIBLYC_TMST_T, timestamp)
 
 /*
