@@ -77,9 +77,10 @@ unsigned int crc32(char *buf, int buf_len)
 {
 	unsigned int crc = 0xFFFFFFFFul;
 	int i;
-	if ( buf != NULL ) {
+    unsigned char* b = (unsigned char*)buf;
+	if ( b != NULL ) {
         for (i = 0; i < buf_len; i++) {
-            crc = (crc >> 8) ^ crc32_table[ (crc ^ (unsigned int) buf[i]) & 0x000000FFul ];
+            crc = (crc >> 8) ^ crc32_table[ (crc ^ (unsigned int) b[i]) & 0x000000FFul ];
         }
 	}
 	return (crc ^ 0xFFFFFFFFul);
