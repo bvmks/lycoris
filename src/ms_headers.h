@@ -13,15 +13,13 @@
 #include <time.h>
 
 #define _LIBLYC_TMST_T unsigned long
-#define _LIBLYC_MESG_T unsigned short
+#define _MS_TYPE_T unsigned short
 #define _LIBLYC_HASH_T int
-
-
 
 #define _LYC_HEADER_IN(type, name) type name;
 
 #define _HEADER_LIST \
-        _LYC_HEADER_IN(_LIBLYC_MESG_T, type)\
+        _LYC_HEADER_IN(_MS_TYPE_T, type)\
         _LYC_HEADER_IN(_LIBLYC_TMST_T, timestamp)
 
 /*

@@ -5,12 +5,18 @@
 
 
 #include "ms_packets.h"
-#include "liblyc.h"
+#include "ms_headers.h"
 
 enum {
-    ms_packet_size = 508,
-    ms_port        = 24880
+    ms_packet_max_size = 508,
 };
+
+/*
+ *  checks standart frame for integrity
+ *  expects last 4 bytes to be a crc32 hash of all frame
+ *  returns 0 on success, -1 otherwise
+ */
+int ms_integrity_check(char* buf, int buf_len);
 
 /*
 *   packs the msg and ms_msg_header and then

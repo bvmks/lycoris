@@ -1,14 +1,12 @@
-#include "liblyc.h"
+#include "ms_headers.h"
 #include <endian.h>
 #include <sys/time.h>
 
 int  ms_pack_header(struct ms_msg_header* src, void* dst)
 {
     char* ptr = dst;
-    *((_LIBLYC_MESG_T*)ptr) = htobe16(src->type);
-    ptr += sizeof(_LIBLYC_MESG_T);
-    *((_LIBLYC_HASH_T*)ptr) = htobe32(src->hash);
-    ptr += sizeof(_LIBLYC_HASH_T);
+    *((_MS_TYPE_T*)ptr) = htobe16(src->type);
+    ptr += sizeof(_MS_TYPE_T);
     *((_LIBLYC_TMST_T*)ptr) = htobe64(src->timestamp);
     ptr += sizeof(_LIBLYC_TMST_T);
     return (ptr - (char*)dst);
@@ -17,10 +15,8 @@ int  ms_pack_header(struct ms_msg_header* src, void* dst)
 int  ms_unpack_header(void* src, struct ms_msg_header* dst)
 {
     char* ptr = src;
-    dst->type = be16toh(*((_LIBLYC_MESG_T*)ptr));
-    ptr += sizeof(_LIBLYC_MESG_T);
-    dst->hash = be32toh(*((_LIBLYC_HASH_T*)ptr));
-    ptr += sizeof(_LIBLYC_HASH_T);
+    dst->type = be16toh(*((_MS_TYPE_T*)ptr));
+    ptr += sizeof(_MS_TYPE_T);
     dst->timestamp = be64toh(*((_LIBLYC_TMST_T*)ptr));
     ptr += sizeof(_LIBLYC_TMST_T);
     return (ptr - (char*)src);

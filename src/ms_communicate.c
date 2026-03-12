@@ -36,7 +36,7 @@ int ms_send(int sockfd, struct ipv4_address *dst, unsigned short msg_type, char 
 int ms_recv(int sockfd, struct ms_packet *in_packet)
 {
     int received;
-    char* buf = malloc(ms_packet_size);
+    char* buf = malloc(ms_packet_max_size);
     char* buf_end = buf + received;
     struct sockaddr_in src;
     struct ipv4_address tmp;
