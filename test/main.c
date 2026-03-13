@@ -5,22 +5,24 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include "../src/liblyc.h"
+#include "../src/ms_headers.h"
+#include "../src/ms_communicate.h"
 
 
 enum {
     buf_len = 508,
-    max_msg_len = buf_len - ms_header_len,
+    max_msg_len = buf_len - sizeof(struct ms_header),
     port = 24880
 };
 
 int main(int argc, char** argv)
 {
-    struct ms_msg_header header;
-    struct sockaddr_in own_addr, dst_addr;
+    struct ms_header header;
+    struct sockaddr_in own_addr;
+    struct ipv4_address dst_addr;
     socklen_t dst_addr_len = sizeof(dst_addr);
     int sockfd, ok, msg_len;
-    char* buf, *fill_ptr;
+    char* buf, *data_ptr;
 
     if(argc < 3) {
         printf("Usage: %s IP MSG\n", argv[0]);
@@ -33,9 +35,8 @@ int main(int argc, char** argv)
         return 5;
     }
 
-    dst_addr.sin_family = AF_INET;
-    dst_addr.sin_port = htons(port);
-    ok = inet_aton(argv[1], &dst_addr.sin_addr);
+    dst_addr.port = htons(port);
+    ok = inet_aton(argv[1], (struct in_addr*)&dst_addr.address);
     if (!ok) {
         perror("IP");
         return 3;
@@ -58,17 +59,13 @@ int main(int argc, char** argv)
     }
 
     buf = malloc(buf_len);
-    fill_ptr = buf;
+    data_ptr = buf + sizeof(struct ms_header);
 
-    header.hash = 0;
-    header.type = MS_MSG;
-    header.timestamp = get_timestamp();
-
-    fill_ptr += ms_pack_header(&header, buf);
-    memcpy(fill_ptr, argv[2], msg_len);
+    memcpy(data_ptr, argv[2], msg_len);
+    ok = ms_send(sockfd, &dst_addr, message, argv[2], msg_len);
     
-    ok = sendto(sockfd, buf, ms_header_len + msg_len, 0, (struct sockaddr*)&dst_addr, dst_addr_len);
-    if(ok != ms_header_len + msg_len) {
+    // ok = sendto(sockfd, buf, ms_header_len + msg_len, 0, (struct sockaddr*)&dst_addr, dst_addr_len);
+    if(ok != sizeof(struct ms_header) + msg_len) {
         printf("NOT OK!\n");
         return 7;
     }
