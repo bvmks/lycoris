@@ -19,11 +19,10 @@ enum {
 int ms_crc32_check(char* buf, int buf_len);
 
 /*
-*   packs the msg and ms_msg_header and then
-*   sends it via UDP to destination, provided by addr
+*   sends ms_packet 
 *   returns amount of sent bytes, -1 if error occured
 */
-int ms_send(int sockfd, struct ipv4_address* dst, unsigned short msg_type, char* msg, int msg_len);
+int ms_send(int sockfd, struct ipv4_address* dst, struct ms_packet* header);
 
 /*
 *   receives the msg and stores it in 

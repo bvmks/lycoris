@@ -2,6 +2,7 @@
 #define _MS_PACKETS_H
 
 #include "ms_headers.h"
+#include <netinet/in.h>
 #include <sys/socket.h>
 
 /*
@@ -9,10 +10,12 @@
 *   contains header, source address, and then data
 */
 struct ms_packet {
-    struct ms_msg_header header;
-    struct ipv4_address addr;
+    struct ms_header header;
+    struct ipv4_address src_addr;
     char* data;
     int data_size;
 };
 
-#endif // !_MS_PACKETS_H
+void init_packet(struct ms_packet*);
+
+#endif
