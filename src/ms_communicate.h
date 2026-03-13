@@ -22,7 +22,7 @@ int ms_crc32_check(char* buf, int buf_len);
 *   sends ms_packet 
 *   returns amount of sent bytes, -1 if error occured
 */
-int ms_send(int sockfd, struct ipv4_address* dst, struct ms_packet* header);
+int ms_send(int sockfd, struct sockaddr_in* dst, struct ms_packet* header);
 
 /*
 *   receives the msg and stores it in 
