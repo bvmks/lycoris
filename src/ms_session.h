@@ -1,8 +1,6 @@
 #ifndef _MS_SESSION_H
 #define _MS_SESSION_H
 
-#include "ms_headers.h"
-
 enum ms_const {
     ms_session_timeout = 3,
     ms_start_seq = 0
@@ -11,9 +9,9 @@ enum ms_const {
 struct ms_session {
     /* session identifyer */
     unsigned short id;
-    /* sequence number of last received package */
+    /* sequence number of last package */
     unsigned short lseq;
-    /* mask for last 64 received packages*/
+    /* mask for last 64 packages*/
     unsigned long long rmask;
 };
 
