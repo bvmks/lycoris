@@ -10,10 +10,10 @@
 enum {
     dgram_max_size = 508,
     ms_header_size = sizeof(struct ms_header),
-    ms_packet_hash_size = 4,
+    hash_size = sizeof(unsigned int),
     ms_packet_payload = dgram_max_size 
-                           - ms_header_size
-                           - ms_packet_hash_size,
+                        - ms_header_size
+                        - hash_size,
 };
 
 /*
@@ -24,10 +24,21 @@ enum {
 int ms_crc32_check(char* buf, int buf_len);
 
 /*
+*   packs and sends header + data + hash
+*   returns amount of sent bytes, -1 if error occured
+*   data can be NULL and data_len = 0
+*   header must BE
+*/
+int ms_send_raw(int sockfd, struct addrport* dst_addr,
+                struct ms_header* header,
+                const char* data, int data_len);
+
+/*
 *   sends ms_packet 
 *   returns amount of sent bytes, -1 if error occured
 */
-int ms_send(int sockfd, struct addrport* dst, struct ms_packet* packet);
+int ms_send(int sockfd, struct addrport* dst_addr, struct ms_packet* packet);
+
 
 /*
 *   receives the msg and stores it in 
