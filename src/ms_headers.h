@@ -17,6 +17,7 @@ struct ms_header {
 /* message types */
 enum ms_msg_type {
     /* mst = MS type */
+    mst_err = 0, /* indicates error */
     mst_post = 1, /* msg with confirmation */
     mst_stream, /* stream part, no confirmation */
     mst_ctrl /* control message (may be with confirmation) */
@@ -25,6 +26,7 @@ enum ms_msg_type {
 /* control options for mst_ctrl message type*/
 enum ms_ctrl {
     /* msc = MS control option*/
+    msc_err = 0, /* indicates error */
     msc_init = 1, /* initiating session, expects ack in return*/
     msc_heardbeat, /* to confirm that we still listening stream */
     msc_ack, /* to confirm*/
