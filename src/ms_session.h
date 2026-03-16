@@ -11,7 +11,7 @@ struct ms_session {
         unsigned long long mask; /* mask for last 64 packages*/
         unsigned short last_seq; /* sequence number of last package */
     } mask_conf, mask_recvd;
-    unsigned short id; /* session identifyer */
+    unsigned short id; /* session identifier */
 };
 
 unsigned short generate_id(unsigned int key);
@@ -31,5 +31,7 @@ int ms_mask_check(unsigned short seq, struct ms_mask* mask);
  * error means message have sequence num older than 64, and cannot be marked
  */
 int ms_mask_add(unsigned short seq, struct ms_mask* mask);
+
+int ms_mask_inc(struct ms_mask* mask);
 
 #endif

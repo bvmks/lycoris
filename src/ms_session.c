@@ -57,3 +57,10 @@ int ms_mask_add(unsigned short seq, struct ms_mask* mask)
         return 0;
     }
 }
+
+int ms_mask_inc(struct ms_mask* mask)
+{
+    mask->mask <<= 1;
+    mask->last_seq++;
+    return 0;
+}
