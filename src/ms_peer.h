@@ -9,6 +9,11 @@ struct ms_peer {
     struct addrport addrport;
 };
 
-
+/*
+ * initializes session and peer
+ * with provided addrport
+ * returns 0 if all gucci
+*/
+int ms_peer_init(struct addrport*, struct ms_peer*);
 
 #endif
