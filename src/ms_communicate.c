@@ -1,27 +1,22 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#include "ms_headers.h"
 #include "ms_communicate.h"
 #include "crc32.h"
+#include "ms_peer.h"
 
 int ms_crc32_check(char *buf, int buf_len)
 {
     return CRC32_VALID != crc32(buf, buf_len);
 }
 
-static void hton_header(struct ms_header* dst, struct ms_header* src) {
-    dst->type = src->type;
-    dst->s_id = htons(src->s_id);
-    dst->seq = htons(src->seq);
-}
-
-static void ntoh_header(struct ms_header* dst, struct ms_header* src) {
-    dst->type = src->type;
-    dst->s_id = ntohs(src->s_id);
-    dst->seq = ntohs(src->seq);
+void ms_crc32_pack(char* buf, int buf_len)
+{
+    *((unsigned int*)(buf+buf_len-4)) = 0;
+    *((unsigned int*)(buf+buf_len-4)) = crc32(buf, buf_len);
 }
 
 int ms_send_raw(int sockfd, struct addrport *dst_addr,
@@ -43,8 +38,7 @@ int ms_send_raw(int sockfd, struct addrport *dst_addr,
     if(data)
         memcpy(buf + ms_header_size, data, data_len);
     
-    *((unsigned int*)(buf + buf_len - ms_hash_size)) = 0;
-    *((unsigned int*)(buf + buf_len - ms_hash_size)) = htonl(crc32(buf, buf_len));
+    ms_crc32_pack(buf, buf_len);
 
     sent = sendto(sockfd, buf, buf_len, 0, (struct sockaddr*)&dst, sizeof(dst));
     free(buf);
@@ -71,6 +65,19 @@ int ms_parse(char* inp, int inp_len, struct ms_header* header, char** data, int*
 
 int ms_recv(int sockfd, struct ms_received_packet *in_packet)
 {
+    /* TODO: DO */
     return NULL;
 }
 
+int ms_send_ctrl(int sockfd, struct ms_peer* p, unsigned short opt)
+{
+    int r;
+    static struct ms_header h;
+    h.s_id = p->session.id;
+    h.seq = p->session.mask_conf.last_seq;
+    h.type.type = mst_ctrl;
+    h.type.opt = opt;
+    r = ms_send_raw(sockfd, &p->addrport, &h, NULL, 0);
+    ms_mask_inc(&p->session.mask_conf);
+    return r;
+}

@@ -6,6 +6,7 @@
 
 #include "ms_packets.h"
 #include "ms_headers.h"
+#include "ms_peer.h"
 
 enum {
     dgram_max_size = 508,
@@ -15,6 +16,7 @@ enum {
                         - ms_header_size
                         - ms_hash_size,
     dgram_min_size = ms_header_size + ms_hash_size,
+    ms_ctrl_packet_size = dgram_min_size
 };
 
 /*
@@ -48,5 +50,11 @@ int ms_recv_raw(int sockfd, struct ms_header* header, char* data, int data_len);
 *   returns 0 if everything ok, otherwise returns -1
 */
 int ms_recv(int sockfd, struct ms_received_packet* in_packet);
+
+/*
+ * sends some static control packet
+ * from enum ms_ctrl
+ */
+int ms_send_ctrl(int sockfd, struct ms_peer* p, unsigned short opt);
 
 #endif
