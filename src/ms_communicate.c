@@ -36,15 +36,15 @@ int ms_send_raw(int sockfd, struct addrport *dst_addr,
     dst.sin_addr.s_addr = htonl(dst_addr->addr);
     dst.sin_port = htons(dst_addr->port);
     
-    buf_len = ms_header_size + data_len + hash_size;
+    buf_len = ms_header_size + data_len + ms_hash_size;
     buf = malloc(buf_len);
     hton_header((struct ms_header*)buf, header);
     
     if(data)
         memcpy(buf + ms_header_size, data, data_len);
     
-    *((unsigned int*)(buf + buf_len - hash_size)) = 0;
-    *((unsigned int*)(buf + buf_len - hash_size)) = htonl(crc32(buf, buf_len));
+    *((unsigned int*)(buf + buf_len - ms_hash_size)) = 0;
+    *((unsigned int*)(buf + buf_len - ms_hash_size)) = htonl(crc32(buf, buf_len));
 
     sent = sendto(sockfd, buf, buf_len, 0, (struct sockaddr*)&dst, sizeof(dst));
     free(buf);
@@ -56,42 +56,21 @@ int ms_send(int sockfd, struct addrport* dst_addr, struct ms_packet* packet)
     return ms_send_raw(sockfd, dst_addr, &packet->header, packet->data, packet->data_size);
 }
 
+int ms_parse(char* inp, int inp_len, struct ms_header* header, char* data, int* data_len)
+{
+    int received, dlen;
+    if (inp_len == 0) 
+        return -1;
+    *data_len = (inp_len - ms_header_size - ms_hash_size);
+    dlen = *data_len;
+    data = malloc(dlen);
+    ntoh_header(header, (struct ms_header*)inp);
+    memcpy(inp+ms_header_size, data, dlen);
+    return 0;
+}
 
 int ms_recv(int sockfd, struct ms_received_packet *in_packet)
 {
-    int received;
-    char* buf = malloc(dgram_max_size);
-    char* buf_end = buf + received;
-    struct sockaddr_in src;
-    socklen_t src_len = sizeof(src);
-    received = recvfrom(sockfd, buf, sizeof(buf), 0, (struct sockaddr*)&src, &src_len);
-    
-    if (received == 0) {
-        in_packet->src_addr.addr            = ntohl(src.sin_addr.s_addr);
-        in_packet->src_addr.port            = ntohs(src.sin_port);
-        in_packet->packet.data              = NULL;
-        in_packet->packet.data_size         = 0;
-        in_packet->packet.header.s_id       = 0;
-        in_packet->packet.header.seq        = 0;
-        in_packet->packet.header.type.type  = mst_err;
-        in_packet->packet.header.type.ctrl  = msc_err;
-        return 0;
-    }
-    else if (received == -1) {
-        return -1;
-    }
-
-    if (ms_crc32_check(buf, received)) {
-        /* REQUEST PACKET AGAIN */
-    }
-    
-    tmp.address = src.sin_addr.s_addr;
-    tmp.port = src.sin_port;
-    in_packet->addr = tmp;
-    in_packet->data = buf + ms_basic_header_len;
-    in_packet->data_size = received - ms_basic_header_len;
-    ms_unpack_header(buf, &(in_packet->header));
-
-    return received;
+    return NULL;
 }
 
