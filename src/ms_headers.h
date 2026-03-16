@@ -8,7 +8,7 @@
 struct ms_header {
     struct ms_type {
         unsigned char type; /* msg type */
-        unsigned char ctrl; /* ctrl aka option */
+        unsigned char opt; /* ctrl aka option */
     } type;
     unsigned short s_id; /* session ID */
     unsigned short seq; /* sequence num */
@@ -18,7 +18,7 @@ struct ms_header {
 enum ms_msg_type {
     /* mst = MS type */
     mst_err = 0, /* indicates error */
-    mst_post = 1, /* msg with confirmation */
+    mst_post, /* msg with confirmation */
     mst_stream, /* stream part, no confirmation */
     mst_ctrl /* control message (may be with confirmation) */
 };
@@ -27,11 +27,20 @@ enum ms_msg_type {
 enum ms_ctrl {
     /* msc = MS control option*/
     msc_err = 0, /* indicates error */
-    msc_init = 1, /* initiating session, expects ack in return*/
-    msc_heardbeat, /* to confirm that we still listening stream */
+    msc_init, /* initiating session, expects ack in return*/
+    msc_heartbeat, /* to confirm that we still listening stream */
     msc_ack, /* to confirm*/
     msc_deny /* to deny*/
 };
 
+/*
+ * converts header bytes from host to network order
+*/
+void hton_header(struct ms_header* dst, struct ms_header* src);
+
+/*
+ * converts header bytes from network to host order
+*/
+void ntoh_header(struct ms_header* dst, struct ms_header* src);
 
 #endif 
