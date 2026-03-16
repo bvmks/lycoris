@@ -22,6 +22,8 @@ struct ms_received_packet {
     struct ms_packet packet;
 };
 
-void init_packet(struct ms_packet*);
+void packet_init(struct ms_packet*);
+
+void packet_free(struct ms_packet*);
 
 #endif
