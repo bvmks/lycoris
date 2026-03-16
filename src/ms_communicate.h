@@ -10,10 +10,11 @@
 enum {
     dgram_max_size = 508,
     ms_header_size = sizeof(struct ms_header),
-    hash_size = sizeof(unsigned int),
+    ms_hash_size = sizeof(unsigned int),
     ms_packet_payload = dgram_max_size 
                         - ms_header_size
-                        - hash_size,
+                        - ms_hash_size,
+    dgram_min_size = ms_header_size + ms_hash_size,
 };
 
 /*
