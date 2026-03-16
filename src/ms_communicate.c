@@ -59,14 +59,13 @@ int ms_send(int sockfd, struct addrport* dst_addr, struct ms_packet* packet)
 int ms_parse(char* inp, int inp_len, struct ms_header* header, char** data, int* data_len)
 {
     int received, dlen;
-    char* tmp = *data;
     if (inp_len == 0) 
         return -1;
     *data_len = (inp_len - ms_header_size - ms_hash_size);
     dlen = *data_len;
-    tmp = malloc(dlen);
+    *data = malloc(dlen);
     ntoh_header(header, (struct ms_header*)inp);
-    memcpy(inp+ms_header_size, tmp, dlen);
+    memcpy(inp+ms_header_size, *data, dlen);
     return 0;
 }
 
