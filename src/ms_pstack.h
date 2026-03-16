@@ -11,15 +11,15 @@ enum {
 /*
  *  
  */
-struct ms_pstack_entry {
-    struct ms_packet packet;
+struct ms_pstack_node {
+    struct ms_received_packet packet;
 };
 
 /*
  *  stack for received dgrams
  */
 struct ms_pstack {
-    struct ms_pstack_entry* buf;
+    struct ms_pstack_node* buf;
     int size;
     int sp; /* a.k.a stack pointer */
 };
@@ -28,12 +28,20 @@ struct ms_pstack {
 /*
 *  malloc memory for buffer
 */
-void init_pstack(struct ms_pstack* stack);
-
+void pstack_init(struct ms_pstack* stack);
 
 /*
 *  frees buffer
 */
-void delete_pstack(struct ms_pstack* stack);
+void pstack_kill(struct ms_pstack* stack);
+
+/*
+ * directry copyes all fields! 
+ * a.k.a transfers resources
+ */
+int pstack_push(struct ms_pstack* stack, struct ms_received_packet* packet);
+
+/* directry copyes all fields! */
+int pstack_pop(struct ms_pstack* stack, struct ms_received_packet* packet);
 
 #endif
