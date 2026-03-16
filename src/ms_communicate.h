@@ -40,6 +40,7 @@ int ms_send_raw(int sockfd, struct addrport* dst_addr,
 */
 int ms_send(int sockfd, struct addrport* dst_addr, struct ms_packet* packet);
 
+int ms_recv_raw(int sockfd, struct ms_header* header, char* data, int data_len);
 
 /*
 *   receives the msg and stores it in 
