@@ -1,18 +1,17 @@
 #ifndef _MS_SESSION_H
 #define _MS_SESSION_H
 
-enum ms_const {
+enum {
     ms_session_timeout = 3,
     ms_start_seq = 0
 };
 
 struct ms_session {
-    /* session identifyer */
-    unsigned short id;
-    /* sequence number of last package */
-    unsigned short lseq;
-    /* mask for last 64 packages*/
-    unsigned long long rmask;
+    struct ms_mask {
+        unsigned long long mask; /* mask for last 64 packages*/
+        unsigned short last_seq; /* sequence number of last package */
+    } mask_conf, mask_recvd;
+    unsigned short id; /* session identifyer */
 };
 
 unsigned short generate_id(unsigned int key);
@@ -20,17 +19,17 @@ unsigned short generate_id(unsigned int key);
 void mss_init_session(struct ms_session* session, unsigned int skey);
 
 /* 
- * checks if message is duplicate within session 
+ * checks mask if seq is duplicate 
  * if so returns 1, otherwise 0, on error returns -1
  * error means message have sequence num older than 64, and cannot be checked
  */
-int mss_check_dup(unsigned short seq, struct ms_session* session);
+int ms_mask_check(unsigned short seq, struct ms_mask* mask);
 
 /*
- * marks sequence num of message as received in given session
+ * marks sequence num in mask
  * if it`s already marked returns 1, otherwise 0, on error returns -1
  * error means message have sequence num older than 64, and cannot be marked
  */
-int mss_mark_recvd(unsigned short seq, struct ms_session* session);
+int ms_mask_add(unsigned short seq, struct ms_mask* mask);
 
 #endif

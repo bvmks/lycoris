@@ -11,47 +11,49 @@ unsigned short generate_id(unsigned int key)
 void mss_init_session(struct ms_session* session, unsigned int skey)
 {
     session->id = generate_id(skey);
-    session->lseq = 0;
-    session->rmask = 0;
+    session->mask_conf.mask = 0;
+    session->mask_conf.last_seq = 0;
+    session->mask_recvd.mask = 0;
+    session->mask_recvd.last_seq = 0;
 }
 
-int mss_check_dup(unsigned short seq, struct ms_session* session)
+int ms_mask_check(unsigned short seq, struct ms_mask* mask)
 {
-    short diff = (short)(seq - session->lseq);
+    short diff = (short)(seq - mask->last_seq);
     if (diff > 0)
         return 0;
-    else if (-diff >= (short)(sizeof(session->rmask) * 8))
+    else if (-diff >= (short)(sizeof(mask->mask) * 8))
         return -1;
-    if (session->rmask & (1ULL << -diff))
+    if (mask->mask & (1ULL << -diff))
         return 1;
     else
         return 0;
 }
 
-int mss_add_recvd(unsigned short seq, struct ms_session* session) 
+int ms_mask_add(unsigned short seq, struct ms_mask* mask) 
 {
-    short diff = (short)(seq - session->lseq);
-    unsigned long long mask;
+    short diff = (short)(seq - mask->last_seq);
+    unsigned long long m;
     if (diff > 0) {
-        if (diff >= (short)(sizeof(session->rmask) * 8)) {
-            session->rmask = 1ULL;
+        if (diff >= (short)(sizeof(mask->mask) * 8)) {
+            mask->mask = 1ULL;
         }
         else {
-            session->rmask <<= diff;
-            session->rmask |= 1ULL;
+            mask->mask <<= diff;
+            mask->mask |= 1ULL;
         }
-        session->lseq = seq;
+        mask->last_seq = seq;
         return 0;
     }
 
-    if (-diff >= (short)(sizeof(session->rmask) * 8))
+    if (-diff >= (short)(sizeof(mask->mask) * 8))
         return -1;
 
-    mask = (1ULL << -diff);
-    if (session->rmask & mask)
+    m = (1ULL << -diff);
+    if (mask->mask & m)
         return 1;
     else {
-        session->rmask |= mask;
+        mask->mask |= m;
         return 0;
     }
 }
