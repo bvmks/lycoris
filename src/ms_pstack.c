@@ -8,7 +8,7 @@ void pstack_init(struct ms_pstack* stack)
     stack->sp = -1;
 }
 
-void pstack_kill(struct ms_pstack* stack)
+void pstack_free(struct ms_pstack* stack)
 {
     int i = 0;
     for(;i < stack->sp; i++) {
@@ -21,7 +21,7 @@ void pstack_kill(struct ms_pstack* stack)
 }
 
 
-int pstack_push(struct ms_pstack* stack, struct ms_received_packet* packet)
+int pstack_push(struct ms_pstack* stack, const struct ms_received_packet* packet)
 {
     if(stack->sp + 1 >= stack->size)
         return 1;
