@@ -1,12 +1,8 @@
 #ifndef _MS_COMMUNICATE_H
 #define _MS_COMMUNICATE_H
 
-#include <sys/socket.h>
-
-
 #include "ms_packets.h"
 #include "ms_headers.h"
-#include "ms_peer.h"
 
 enum {
     dgram_max_size = 508,
@@ -19,12 +15,16 @@ enum {
     ms_ctrl_packet_size = dgram_min_size
 };
 
+enum ms_com_errors {
+    ms_ce_msg_too_long = -2,
+};
+
 /*
  *  checks standart frame for integrity
  *  expects last 4 bytes to be a crc32 hash of all frame
  *  returns 0 on success, -1 otherwise
  */
-int ms_crc32_check(char* buf, int buf_len);
+int ms_crc32_check(const char* buf, int buf_len);
 
 /*
 *   packs and sends header + data + hash
@@ -32,29 +32,30 @@ int ms_crc32_check(char* buf, int buf_len);
 *   data can be NULL and data_len = 0
 *   header must BE
 */
-int ms_send_raw(int sockfd, struct addrport* dst_addr,
-                struct ms_header* header,
-                const char* data, int data_len);
+int ms_send_raw(int sockfd, 
+                const struct addrport* dst_addr,
+                const struct ms_header* header,
+                const char* data,
+                int data_len);
 
 /*
 *   sends ms_packet 
 *   returns amount of sent bytes, -1 if error occured
 */
-int ms_send(int sockfd, struct addrport* dst_addr, struct ms_packet* packet);
-
-int ms_recv_raw(int sockfd, struct ms_header* header, char* data, int data_len);
-
-/*
-*   receives the msg and stores it in 
-*   pointer to struct ms_packet
-*   returns 0 if everything ok, otherwise returns -1
-*/
-int ms_recv(int sockfd, struct ms_received_packet* in_packet);
+int ms_send_packet(int sockfd, 
+                   const struct addrport* dst_addr,
+                   const struct ms_packet* packet);
 
 /*
- * sends some static control packet
- * from enum ms_ctrl
+ *
+ *  parses buffer into header + data
+ *  for data allocates new mem
  */
-int ms_send_ctrl(int sockfd, struct ms_peer* p, unsigned short opt);
+int ms_parse(const char* inp,
+             int inp_len,
+             struct ms_header* header,
+             char** data,
+             int* data_len);
+
 
 #endif
