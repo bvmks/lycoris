@@ -26,4 +26,8 @@ void packet_init(struct ms_packet*);
 
 void packet_free(struct ms_packet*);
 
+void packet_copy(struct ms_packet* dst, const struct ms_packet* src);
+
+void packet_move(struct ms_packet* dst, struct ms_packet* src);
+
 #endif
