@@ -33,14 +33,18 @@ enum ms_ctrl {
     msc_deny /* to deny*/
 };
 
+void header_init(struct ms_header* h);
+
 /*
  * converts header bytes from host to network order
 */
-void hton_header(struct ms_header* dst, struct ms_header* src);
+void hton_header(struct ms_header* dst, const struct ms_header* src);
 
 /*
  * converts header bytes from network to host order
 */
-void ntoh_header(struct ms_header* dst, struct ms_header* src);
+void ntoh_header(struct ms_header* dst, const struct ms_header* src);
+
+
 
 #endif 
