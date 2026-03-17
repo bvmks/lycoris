@@ -33,13 +33,13 @@ void pstack_init(struct ms_pstack* stack);
 /*
 *  frees buffer
 */
-void pstack_kill(struct ms_pstack* stack);
+void pstack_free(struct ms_pstack* stack);
 
 /*
  * directry copyes all fields! 
  * a.k.a transfers resources
  */
-int pstack_push(struct ms_pstack* stack, struct ms_received_packet* packet);
+int pstack_push(struct ms_pstack* stack, const struct ms_received_packet* packet);
 
 /* directry copyes all fields! */
 int pstack_pop(struct ms_pstack* stack, struct ms_received_packet* packet);
