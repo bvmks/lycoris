@@ -29,3 +29,18 @@ const char *addrport2a(const struct addrport *ap)
     return ipport2a(ap->addr, ap->port);
 }
 
+
+void addrport2sockaddr_in(struct sockaddr_in* so, const struct addrport* addr)
+{
+    so->sin_family = AF_INET;
+    so->sin_addr.s_addr = htonl(addr->addr);
+    so->sin_port = htons(addr->port);
+}
+
+void sockaddr_in2addrport(struct addrport* addr, const struct sockaddr_in* so) 
+{
+    addr->addr = ntohl(so->sin_addr.s_addr);
+    addr->port = ntohs(so->sin_port);
+}
+
+
