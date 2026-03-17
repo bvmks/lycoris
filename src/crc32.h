@@ -8,6 +8,6 @@
 /*
 *   calculates crc32 hash
 */
-unsigned int crc32(char* buf, int buf_len);
+unsigned int crc32(const char* buf, int buf_len);
 
 #endif

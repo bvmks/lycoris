@@ -73,7 +73,7 @@ static unsigned int crc32_table[256] =
         0xb40bbe37, 0xc30c8ea1, 0x5a05df1b, 0x2d02ef8d,
     };
 
-unsigned int crc32(char *buf, int buf_len)
+unsigned int crc32(const char *buf, int buf_len)
 {
 	unsigned int crc = 0xFFFFFFFFul;
 	int i;
