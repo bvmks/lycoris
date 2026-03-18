@@ -9,7 +9,7 @@ enum {
 };
 
 /*
- *  
+ * represents one ms_pstack element 
  */
 struct ms_pstack_node {
     struct ms_received_packet packet;
@@ -21,7 +21,7 @@ struct ms_pstack_node {
 struct ms_pstack {
     struct ms_pstack_node* buf;
     int size;
-    int sp; /* a.k.a stack pointer */
+    int sp; /* stack pointer */
 };
 
 
@@ -36,12 +36,15 @@ void pstack_init(struct ms_pstack* stack);
 void pstack_free(struct ms_pstack* stack);
 
 /*
- * directry copyes all fields! 
- * a.k.a transfers resources
+ * directly copies all fields 
+ * i.e. transfers resources
  */
 int pstack_push(struct ms_pstack* stack, const struct ms_received_packet* packet);
 
-/* directry copyes all fields! */
+/*
+ * directly copies all fields 
+ * i.e. transfers resources
+ */
 int pstack_pop(struct ms_pstack* stack, struct ms_received_packet* packet);
 
 #endif
