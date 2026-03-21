@@ -22,7 +22,7 @@ void pqueue_free(struct ms_pqueue* queue)
     for (;tmp != queue->tail; tmp = tmp->next) {
         packet_free(&(tmp->packet.packet));
     }
-    free(queue);
+    pqueue_init(queue);
 }
 
 int pqueue_push(struct ms_pqueue* queue, const struct ms_received_packet* src)
