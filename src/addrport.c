@@ -15,7 +15,7 @@ void ipport2str(char *str, unsigned int ip, unsigned short port)
 
 void str2ipport(unsigned int *ip, unsigned short *port, char* str)
 {
-    char* str_ip, *str_port;
+    static char str_ip[sizeof("255.255.255.255")], str_port[sizeof("65535")];
     sscanf(str, "%s:%s", str_ip, str_port);
     str2ip(ip, str_ip);
     str2port(port, str_port);
