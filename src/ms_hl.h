@@ -26,4 +26,7 @@ int ms_send(int sockfd,
             int buf_len);
 
 
+int ms_recv_packet(int sockfd, struct ms_received_packet* p);
+
+
 #endif
