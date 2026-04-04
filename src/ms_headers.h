@@ -1,37 +1,17 @@
 #ifndef _MS_HEADERS_H
 #define _MS_HEADERS_H
 
+#include "ms_msg_types.h"
 /*
  *  basic MS header
  *  when sending bytes must be in network order
  */
 struct ms_header {
-    struct ms_type {
-        unsigned char type; /* msg type */
-        unsigned char opt; /* ctrl aka option */
-    } type;
+    struct ms_type type;
     unsigned short s_id; /* session ID */
     unsigned short seq; /* sequence num */
 };
 
-/* message types */
-enum ms_msg_type {
-    /* mst = MS type */
-    mst_err = 0, /* indicates error */
-    mst_post, /* msg with confirmation */
-    mst_stream, /* stream part, no confirmation */
-    mst_ctrl /* control message (may be with confirmation) */
-};
-
-/* control options for mst_ctrl message type*/
-enum ms_ctrl {
-    /* msc = MS control option*/
-    msc_err = 0, /* indicates error */
-    msc_init, /* initiating session, expects ack in return*/
-    msc_heartbeat, /* to confirm that we still listening stream */
-    msc_ack, /* to confirm*/
-    msc_deny /* to deny*/
-};
 
 void header_init(struct ms_header* h);
 

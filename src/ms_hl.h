@@ -4,6 +4,7 @@
 #include "ms_packets.h"
 #include "ms_session.h"
 #include "ms_peer.h"
+#include "ms_msg_types.h"
 #include "addrport.h"
 #include "ms_communicate.h"
 
