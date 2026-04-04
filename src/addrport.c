@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "addrport.h"
 
@@ -12,9 +13,34 @@ void ipport2str(char *str, unsigned int ip, unsigned short port)
                  port);
 }
 
+void str2ipport(unsigned int *ip, unsigned short *port, char* str)
+{
+    char* str_ip, *str_port;
+    sscanf(str, "%s:%s", str_ip, str_port);
+    str2ip(ip, str_ip);
+    str2port(port, str_port);
+}
+
+void str2ip(unsigned int *ip, const char* str)
+{
+    struct in_addr* i;
+    inet_aton(str, i);
+    *ip = ntohl(i->s_addr);
+}
+
+void str2port(unsigned short *port, const char* str)
+{
+    *port = atoi(str);
+}
+
 void addrport2str(char *str, const struct addrport *ap)
 {
     ipport2str(str, ap->addr, ap->port);
+}
+
+void str2addrport(struct addrport *dst, char *src)
+{
+    str2ipport(&dst->addr, &dst->port, src);
 }
 
 const char *ipport2a(unsigned int ip, unsigned short port)

@@ -14,11 +14,19 @@ struct addrport { /* host byte order */
 
 void ipport2str(char *str, unsigned int ip, unsigned short port);
 
+void str2ipport(unsigned int *ip, unsigned short *port, char* str);
+
+void str2ip(unsigned int *ip, const char* str);
+
+void str2port(unsigned short *port, const char* str);
+
 const char *ipport2a(unsigned int ip, unsigned short port);
 
 const char *addrport2a(const struct addrport *ap);
 
 void addrport2str(char *str, const struct addrport *ap);
+
+void str2addrport(struct addrport *src, char *dst);
 
 void addrport2sockaddr_in(struct sockaddr_in* so, const struct addrport* addr);
 
