@@ -14,6 +14,6 @@ struct ms_peer {
  * with provided addrport
  * returns 0 if all gucci
 */
-int init_peer(struct ms_peer*, struct addrport* addr, unsigned short id);
+int peer_init(struct ms_peer*, struct addrport* addr, unsigned short id);
 
 #endif
