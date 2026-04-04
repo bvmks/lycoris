@@ -47,18 +47,15 @@ int ms_send_packet(int sockfd,
     return ms_send_raw(sockfd, dst_addr, &packet->header, packet->data, packet->data_size);
 }
 
-int ms_parse(const char* inp,
-             int inp_len,
+void ms_parse(const char* buf,
+             int buf_len,
              struct ms_header* header,
              char** data,
              int* data_len)
 {
-    if (inp_len == 0) 
-        return -1;
-    *data_len = (inp_len - ms_header_size - ms_hash_size);
+    *data_len = (buf_len - ms_header_size - ms_hash_size);
     *data = malloc(*data_len);
-    ntoh_header(header, (struct ms_header*)inp);
-    memcpy(*data, inp+ms_header_size, *data_len);
-    return 0;
+    ntoh_header(header, (struct ms_header*)buf);
+    memcpy(*data, buf+ms_header_size, *data_len);
 }
 

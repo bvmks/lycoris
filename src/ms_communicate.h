@@ -51,8 +51,8 @@ int ms_send_packet(int sockfd,
  *  parses buffer into header + data
  *  for data allocates new mem
  */
-int ms_parse(const char* inp,
-             int inp_len,
+void ms_parse(const char* buf,
+             int buf_len,
              struct ms_header* header,
              char** data,
              int* data_len);
