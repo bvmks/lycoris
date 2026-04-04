@@ -11,6 +11,7 @@ int ms_send(int sockfd,
 {
     int r;
     static struct ms_header h;
+
     h.s_id = p->session.id;
     h.seq = p->session.mask_conf.last_seq;
     h.type.type = type;
