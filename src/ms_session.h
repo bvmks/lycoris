@@ -15,6 +15,6 @@ struct ms_session {
 
 unsigned short generate_id(unsigned int key);
 
-void mss_init_session(struct ms_session* session, unsigned int skey);
+void session_init(struct ms_session* session, unsigned short id);
 
 #endif

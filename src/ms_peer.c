@@ -2,9 +2,9 @@
 #include "ms_session.h"
 #include "addrport.h"
 
-int ms_peer_init(struct addrport* ap, struct ms_peer* p)
+int ms_peer_init(struct ms_peer* p, struct addrport* ap, unsigned short id)
 {
-    mss_init_session(&p->session, ap->addr);
+    session_init(&p->session, id);
     p->addrport = *ap;
     return 0;
 }

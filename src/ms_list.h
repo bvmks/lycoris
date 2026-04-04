@@ -11,7 +11,7 @@ struct _ms_list{
     struct ms_pqueue queue;
 };
 
-void mss_init_list(struct _ms_list* list);
+void list_init(struct _ms_list* list);
 
 /* 
  * checks mask if seq is duplicate 

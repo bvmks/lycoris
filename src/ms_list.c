@@ -1,6 +1,6 @@
 #include "ms_list.h"
 
-void mss_init_list(struct _ms_list* list)
+void list_init(struct _ms_list* list)
 {
     list->mask.last_seq = 0;
     list->mask.mask = 0;
