@@ -10,62 +10,68 @@ void pqueue_init(struct ms_pqueue *queue)
     queue->size = 0;
 }
 
-
 void pqueue_free(struct ms_pqueue* queue)
 {
     struct ms_pqueue_node* tmp = queue->head;
     if (tmp == queue->tail) {
-        packet_free(&(tmp->packet.packet));
+        packet_free(&(tmp->packet));
         free(queue);
         return;
     }
     for (;tmp != queue->tail; tmp = tmp->next) {
-        packet_free(&(tmp->packet.packet));
+        packet_free(&(tmp->packet));
     }
     pqueue_init(queue);
 }
 
-int pqueue_push(struct ms_pqueue* queue, const struct ms_received_packet* src)
+int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
 {
     if (queue->size == 0) {
         queue->head = malloc(sizeof(struct ms_pqueue_node));
-        packet_copy(&queue->head->packet.packet, &src->packet);
+        packet_copy(&queue->head->packet, src);
         queue->tail = queue->head;
-        queue->size = 1;
-        return 0;
     }
-
-    queue->tail->next = malloc(sizeof(struct ms_pqueue_node));
-    packet_copy(&queue->tail->next->packet.packet, &src->packet);
-    queue->tail->next->packet.src_addr = src->src_addr;
-    queue->tail = queue->tail->next;
+    else {
+        queue->tail->next = malloc(sizeof(struct ms_pqueue_node));
+        packet_copy(&queue->tail->next->packet, src);
+        queue->tail->next->packet = *src;
+        queue->tail = queue->tail->next;
+    }
     queue->size++;
     return 0;
 }
 
-int pqueue_pop (struct ms_pqueue* queue, struct ms_received_packet* dst)
+int pqueue_pop (struct ms_pqueue* queue, struct ms_packet* dst)
 {
-    packet_copy(&dst->packet, &queue->head->packet.packet);
-    dst->src_addr = queue->head->packet.src_addr;
+    packet_copy(dst, &queue->head->packet);
     struct ms_pqueue_node* tmp = queue->head;
-    packet_free(&tmp->packet.packet);
+    packet_free(&tmp->packet);
     queue->head = queue->head->next;
     return 0;
 }
 
-int pqueue_peek(const struct ms_pqueue* queue, struct ms_received_packet* dst, unsigned int pos)
+int pqueue_get(const struct ms_pqueue* queue, struct ms_packet* dst, unsigned int pos)
 {
     int i;
     struct ms_pqueue_node* tmp = queue->head;
     if (pos < 0 || pos > queue->size)
         return -1;
-
     for (i = 0; i < pos; i++) {
         tmp = tmp->next;
     }
-
-    packet_copy(&dst->packet, &tmp->packet.packet);
-    dst->src_addr = tmp->packet.src_addr;
-
+    packet_copy(dst, &tmp->packet);
     return 0;
 }
+
+struct ms_packet* pqueue_peek(const struct ms_pqueue* queue, unsigned int pos)
+{
+    int i;
+    struct ms_pqueue_node* tmp = queue->head;
+    if (pos < 0 || pos > queue->size)
+        return NULL;
+    for (i = 0; i < pos; i++) {
+        tmp = tmp->next;
+    }
+    return &tmp->packet;
+}
+
