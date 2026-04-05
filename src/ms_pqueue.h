@@ -19,6 +19,7 @@ struct ms_pqueue {
     struct ms_pqueue_node* head;
     struct ms_pqueue_node* tail;
     unsigned int size;
+    const unsigned char max_size = 64;
 };
 
 /*
