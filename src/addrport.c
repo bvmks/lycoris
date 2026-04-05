@@ -16,16 +16,16 @@ void ipport2str(char *str, unsigned int ip, unsigned short port)
 void str2ipport(unsigned int *ip, unsigned short *port, char* str)
 {
     static char str_ip[sizeof("255.255.255.255")], str_port[sizeof("65535")];
-    sscanf(str, "%s:%s", str_ip, str_port);
+    sscanf(str, "%[0-9.]:%s", str_ip, str_port);
     str2ip(ip, str_ip);
     str2port(port, str_port);
 }
 
 void str2ip(unsigned int *ip, const char* str)
 {
-    struct in_addr* i;
-    inet_aton(str, i);
-    *ip = ntohl(i->s_addr);
+    struct in_addr i;
+    inet_aton(str, &i);
+    *ip = ntohl(i.s_addr);
 }
 
 void str2port(unsigned short *port, const char* str)
@@ -40,7 +40,7 @@ void addrport2str(char *str, const struct addrport *ap)
 
 void str2addrport(struct addrport *dst, char *src)
 {
-    str2ipport(&dst->addr, &dst->port, src);
+    str2ipport(&(dst->addr), &(dst->port), src);
 }
 
 const char *ipport2a(unsigned int ip, unsigned short port)

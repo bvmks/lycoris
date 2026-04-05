@@ -26,7 +26,7 @@ const char *addrport2a(const struct addrport *ap);
 
 void addrport2str(char *str, const struct addrport *ap);
 
-void str2addrport(struct addrport *src, char *dst);
+void str2addrport(struct addrport *dst, char *src);
 
 void addrport2sockaddr_in(struct sockaddr_in* so, const struct addrport* addr);
 
