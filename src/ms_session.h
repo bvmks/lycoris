@@ -13,8 +13,15 @@ struct ms_session {
     unsigned short id; /* session identifier */
 };
 
+/*
+ * used to generate random number 
+ * based on key specified
+*/
 unsigned short generate_id(unsigned int key);
 
+/*
+*  used to generate session
+*/
 void session_init(struct ms_session* session, unsigned short id);
 
 #endif
