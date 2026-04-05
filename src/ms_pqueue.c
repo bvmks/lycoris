@@ -31,7 +31,7 @@ int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
         packet_copy(&queue->head->packet, src);
         queue->tail = queue->head;
     }
-    else if (queue->size == queue->max_size) {
+    else if (queue->size == pqueue_max_size) {
         pqueue_pop(queue, NULL);
         pqueue_push(queue, src);
     }
