@@ -3,10 +3,7 @@
 
 void pqueue_init(struct ms_pqueue *queue)
 {
-    queue->head = NULL;
-    queue->head->next = NULL;
-    queue->tail = NULL;
-    queue->tail->next = NULL;
+    queue->head = queue->tail = NULL;
     queue->size = 0;
 }
 
@@ -15,13 +12,13 @@ void pqueue_free(struct ms_pqueue* queue)
     struct ms_pqueue_node* tmp = queue->head;
     if (tmp == queue->tail) {
         packet_free(&(tmp->packet));
-        free(queue);
+        free(tmp);
         return;
     }
     for (;tmp != queue->tail; tmp = tmp->next) {
         packet_free(&(tmp->packet));
     }
-    pqueue_init(queue);
+    free(tmp);
 }
 
 int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
