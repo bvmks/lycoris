@@ -45,10 +45,9 @@ int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
 int pqueue_pop (struct ms_pqueue* queue, struct ms_packet* dst)
 {
     if (dst != NULL) {
-        packet_copy(dst, &queue->head->packet);
+        packet_move(dst, &queue->head->packet);
     }
     struct ms_pqueue_node* tmp = queue->head;
-    packet_free(&tmp->packet);
     queue->head = queue->head->next;
     return 0;
 }
