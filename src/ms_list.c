@@ -19,9 +19,7 @@ int ms_mask_check(unsigned short seq, struct ms_mask* mask)
     else
         return 0;
 }
-
-int ms_mask_add(unsigned short seq, struct ms_mask* mask) 
-{
+int ms_mask_add(unsigned short seq, struct ms_mask* mask) {
     short diff = (short)(seq - mask->last_seq);
     unsigned long long m;
     if (diff > 0) {
