@@ -19,6 +19,7 @@ _MS_T_IN(msc_err)\
 _MS_T_IN(msc_init)\
 _MS_T_IN(msc_term)\
 _MS_T_IN(msc_heartbeat)\
+_MS_T_IN(msc_conf)\
 _MS_T_IN(msc_ack)\
 _MS_T_IN(msc_deny)
 

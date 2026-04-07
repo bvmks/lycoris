@@ -14,6 +14,9 @@
  */
 int ms_send_ctrl(int sockfd, struct ms_connection* p, unsigned short opt);
 
+
+int ms_send_confirm(int sockfd, struct ms_connection* p, unsigned short seq);
+
 /*
 *  automatically sends header + buffer + hash 
 *  header will be filled with session id, current seq and type/opt specified
