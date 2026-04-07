@@ -7,7 +7,38 @@ void list_init(struct _ms_list* list)
     pqueue_init(&list->queue);
 }
 
-int ms_mask_check(unsigned short seq, struct ms_mask* mask)
+
+
+int list_push(struct _ms_list* list, struct ms_packet* p) 
+{
+    int res, cur_last;
+    struct ms_packet filler;
+    cur_last = list->mask.last_seq;
+    res = ms_mask_add(&list->mask, p->header.seq);
+    if(res == 0) {
+        packet_init(&filler);
+        for(; p->header.seq - cur_last > 1; cur_last++) {
+            pqueue_push(&list->queue, &filler);
+        }
+        pqueue_push(&list->queue, p);
+    }
+
+    return res;
+}
+
+
+int list_mask_check(const struct _ms_list* list, const struct ms_packet* p)
+{
+    return ms_mask_check(&list->mask, p->header.seq);
+}
+
+struct ms_packet* list_peek(const struct _ms_list* list, unsigned int num)
+{
+    return pqueue_peek(&list->queue, num);
+}
+
+
+int ms_mask_check(const struct ms_mask* mask, unsigned short seq)
 {
     short diff = (short)(seq - mask->last_seq);
     if (diff > 0)
@@ -19,7 +50,9 @@ int ms_mask_check(unsigned short seq, struct ms_mask* mask)
     else
         return 0;
 }
-int ms_mask_add(unsigned short seq, struct ms_mask* mask) {
+
+int ms_mask_add(struct ms_mask* mask, unsigned short seq)
+{
     short diff = (short)(seq - mask->last_seq);
     unsigned long long m;
     if (diff > 0) {
