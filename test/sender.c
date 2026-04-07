@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include "../src/ms_proto.h"
 #include "../src/socks.h"
 
@@ -8,11 +9,10 @@ enum {
 
 int main(int argc, char **argv)
 {
-    int sockfd, peer_id, buf_len;
+    int sockfd, peer_id, msg_len, ok;
     struct addrport dst;
     struct ms_connection peer;
     char buf[1000];
-    buf_len = sizeof(buf);
 
     if (argc < 2) {
         printf("usage: %s ip:port\n", argv[0]);
@@ -26,8 +26,11 @@ int main(int argc, char **argv)
 
     for(;;) {
         printf(">>");
-        buf_len = scanf("%s", buf);
-        ms_send(sockfd, &peer, mst_post, 0, buf, buf_len);
+        ok = scanf("%s", buf);
+        if(ok == 1) {
+            msg_len = strlen(buf);
+            ms_send(sockfd, &peer, mst_post, 0, buf, msg_len+1);
+        }
     }
 
     return 0;

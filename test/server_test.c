@@ -10,7 +10,7 @@
 #include "../src/addrport.h"
 
 enum {
-    port = 24880
+    def_port = 24880
 };
 
 
@@ -37,6 +37,7 @@ int main_loop(int sock)
             connection_init(&connection, &recvd_packet.src_addr, recvd_packet.packet.header.s_id);
             got_peer = 1;
         }
+        printf("seq: %d\n", recvd_packet.packet.header.seq);
         printf("type: %s\n", ms_type2a(recvd_packet.packet.header.type));
         if (recvd_packet.packet.header.type.type == mst_post) {
             printf("data: %s\n", recvd_packet.packet.data);
@@ -58,7 +59,7 @@ int main_loop(int sock)
                 printf("confirmation sent\n");
                 ok = ms_send_confirm(sock, &connection, recvd_packet.packet.header.seq);
                 if(ok == -1) {
-                    perror("ms_send_ctrl");
+                    perror("ms_send_confirm");
                     loop = 0;
                     result = -1;
                 }
@@ -74,17 +75,23 @@ int main_loop(int sock)
 
 int main(int argc, char** argv)
 {
+    int opt;
+    unsigned short port;
+    if(argc > 1) {
+        port = atoi(argv[1]);
+    }
+    else {
+        port = def_port;
+    }
     int main_sockfd;
-    struct sockaddr_in addr;
-    socklen_t addr_len;
     srand(time(NULL));
     main_sockfd = make_sock(SOCK_DGRAM, INADDR_ANY, port);
     if(main_sockfd == -1) {
         perror("make_sock");
         fprintf(stderr, "[DEBUG] Failed to init main socket\n");
     }
-    getsockname(main_sockfd, (struct sockaddr*)&addr, &addr_len);
-    printf("bound to: %s:%d\n", inet_ntoa(addr.sin_addr), port);
+    opt = 1;
+    setsockopt(main_sockfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
     main_loop(main_sockfd);
     return 0;
 }
