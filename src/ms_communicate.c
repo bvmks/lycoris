@@ -11,7 +11,6 @@ int ms_crc32_check(const char *buf, int buf_len)
 {
     return CRC32_VALID != crc32(buf, buf_len);
 }
-
 void ms_crc32_pack(char* buf, int buf_len)
 {
     *((unsigned int*)(buf+buf_len-4)) = 0;
