@@ -1,5 +1,7 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include "../src/ms_proto.h"
 #include "../src/socks.h"
 
@@ -13,6 +15,7 @@ int main(int argc, char **argv)
     struct addrport dst;
     struct ms_connection peer;
     char buf[1000];
+    // char buf[] =  "bebra";
 
     if (argc < 2) {
         printf("usage: %s ip:port\n", argv[0]);
@@ -28,8 +31,9 @@ int main(int argc, char **argv)
         printf(">>");
         ok = scanf("%s", buf);
         if(ok == 1) {
+            // usleep(1000);
             msg_len = strlen(buf);
-            ms_send(sockfd, &peer, mst_post, 0, buf, msg_len+1);
+            ms_send_post(sockfd, &peer, buf, msg_len+1);
         }
     }
 

@@ -23,7 +23,9 @@ int main_loop(int sock)
     got_peer = 0;
     
     fprintf(stderr, "[DEBUG] Enterring main loop\n");
+    packet_init(&recvd_packet.packet);
     while(loop) {
+        packet_clear(&recvd_packet.packet);
         ok = ms_recv_packet(sock, &recvd_packet);
 
         if(ok == -1) {
@@ -34,19 +36,20 @@ int main_loop(int sock)
         printf("Received from: %s\n", addrport2a(&recvd_packet.src_addr));
         if(!got_peer) {
             printf("new peer\n");
-            connection_init(&connection, &recvd_packet.src_addr, recvd_packet.packet.header.s_id);
+            connection_init(&connection, &recvd_packet.src_addr, 
+                            ((struct ms_post_header*)recvd_packet.packet.header)->s_id);
             got_peer = 1;
         }
-        printf("seq: %d\n", recvd_packet.packet.header.seq);
-        printf("type: %s\n", ms_type2a(recvd_packet.packet.header.type));
-        if (recvd_packet.packet.header.type.type == mst_post) {
+        printf("seq: %d\n", ((struct ms_post_header*)recvd_packet.packet.header)->seq);
+        printf("type: %s\n", ms_type2a(((struct ms_post_header*)recvd_packet.packet.header)->type));
+        if (recvd_packet.packet.header->type.t == mst_post) {
             printf("data: %s\n", recvd_packet.packet.data);
         }
         else {
             printf("data:\n");
         }
 
-        if(recvd_packet.packet.header.type.type != mst_ctrl) {
+        if(recvd_packet.packet.header->type.t != mst_ctrl) {
             chk = list_mask_check(&connection.session.recvd, &recvd_packet.packet);
             if(chk == 0) {
                 printf("is a new packet\n");
@@ -56,12 +59,14 @@ int main_loop(int sock)
                 printf("is a duplicate\n");
             }
             if (chk != -1) {
-                printf("confirmation sent\n");
-                ok = ms_send_confirm(sock, &connection, recvd_packet.packet.header.seq);
+                ok = ms_send_confirm(sock, &connection, ((struct ms_post_header*)recvd_packet.packet.header)->seq);
                 if(ok == -1) {
                     perror("ms_send_confirm");
                     loop = 0;
                     result = -1;
+                }
+                else {
+                    printf("confirmation sent\n");
                 }
             }
         }
