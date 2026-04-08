@@ -1,0 +1,50 @@
+*********************
+Here goes MS message types and overall protocol description
+ver 0.0.1 (08.04.2026)
+
+
+minimal header struct:
+name    len(Byte)  desc
+type    1          general type  
+opt     1          subtype
+
+so minimal header payload is just this type structure.
+for different types of messages header may have additional fields
+so type must be checked and pointer may be cast to different header type
+
+*********************
+MSG types
+
+echo request
+echo_reply
+post
+
+
+*********************
+general connection process description:
+
+** ALL BELOWE IS BULLSHIT, WILL BE CHANGED SOON**
+
+1. Handshake:
+
+client           server
+        e_req -->
+        <-- e_rep
+        if got e_rep
+        then server is ready to communicate
+        if no replly
+        or got err type in reply, then so
+
+        where
+        client it's so called initiator
+        server it's just destination node
+
+during handshake firstly client creates dedicated socket for it
+and inits connection struct
+then if server is ready it creates own dedicated socket 
+and inits connection struct
+if got error during this step, both sides must discard connection
+then initiator may try handshake again
+
+
+
