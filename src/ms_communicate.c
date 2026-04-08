@@ -24,16 +24,17 @@ int ms_send_raw(int sockfd,
                 int data_len)
 {
     static char buf[dgram_max_size];
-    int msg_len, sent;
+    int msg_len, header_len, sent;
     struct sockaddr_in dst;
-
-    msg_len = ms_header_size + data_len + ms_hash_size;
+    
+    header_len = get_header_size(header);
+    msg_len = header_len + data_len + ms_hash_size;
     if (msg_len > dgram_max_size)
         return ms_ce_msg_too_long;
     addrport2sockaddr_in(&dst, dst_addr);
-    hton_header((struct ms_header*)buf, header);
+    header2mem(buf, header);
     if(data)
-        memcpy(buf + ms_header_size, data, data_len);
+        memcpy(buf + header_len, data, data_len);
     ms_crc32_pack(buf, msg_len);
     sent = sendto(sockfd, buf, msg_len, 0, (struct sockaddr*)&dst, sizeof(dst));
     return sent;
@@ -43,18 +44,21 @@ int ms_send_packet(int sockfd,
                    const struct addrport* dst_addr,
                    const struct ms_packet* packet)
 {
-    return ms_send_raw(sockfd, dst_addr, &packet->header, packet->data, packet->data_size);
+    return ms_send_raw(sockfd, dst_addr, packet->header, packet->data, packet->data_size);
 }
 
 void ms_parse(const char* buf,
              int buf_len,
-             struct ms_header* header,
+             struct ms_header** header,
              char** data,
              int* data_len)
 {
-    *data_len = (buf_len - ms_header_size - ms_hash_size);
+    int header_len;
+    struct ms_header* in_h = (struct ms_header*)buf;
+    *header = header_make(in_h->type.t, in_h->type.o);
+    header_len = mem2header(*header, buf);
+    *data_len = (buf_len - header_len - ms_hash_size);
     *data = malloc(*data_len);
-    ntoh_header(header, (struct ms_header*)buf);
-    memcpy(*data, buf+ms_header_size, *data_len);
+    memcpy(*data, buf+header_len, *data_len);
 }
 

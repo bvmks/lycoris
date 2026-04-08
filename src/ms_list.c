@@ -11,13 +11,15 @@ void list_init(struct _ms_list* list)
 
 int list_push(struct _ms_list* list, struct ms_packet* p) 
 {
-    int res, cur_last;
+    int res;
     struct ms_packet filler;
+    unsigned short cur_last, seq;
+    seq = ((struct ms_post_header*)p->header)->seq;
     cur_last = list->mask.last_seq;
-    res = ms_mask_add(&list->mask, p->header.seq);
+    res = ms_mask_add(&list->mask, seq);
     if(res == 0) {
         packet_init(&filler);
-        for(; p->header.seq - cur_last > 1; cur_last++) {
+        for(; seq - cur_last > 1; cur_last++) {
             pqueue_push(&list->queue, &filler);
         }
         pqueue_push(&list->queue, p);
@@ -29,7 +31,8 @@ int list_push(struct _ms_list* list, struct ms_packet* p)
 
 int list_mask_check(const struct _ms_list* list, const struct ms_packet* p)
 {
-    return ms_mask_check(&list->mask, p->header.seq);
+    unsigned short seq = ((struct ms_post_header*)p->header)->seq;
+    return ms_mask_check(&list->mask, seq);
 }
 
 struct ms_packet* list_peek(const struct _ms_list* list, unsigned int num)

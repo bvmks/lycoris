@@ -6,12 +6,8 @@
 
 enum {
     dgram_max_size = 508,
-    ms_header_size = sizeof(struct ms_header),
     ms_hash_size = sizeof(unsigned int),
-    ms_packet_payload = dgram_max_size 
-                        - ms_header_size
-                        - ms_hash_size,
-    dgram_min_size = ms_header_size + ms_hash_size,
+    dgram_min_size = ms_gen_header_size + ms_hash_size,
     ms_ctrl_packet_size = dgram_min_size
 };
 
@@ -53,7 +49,7 @@ int ms_send_packet(int sockfd,
  */
 void ms_parse(const char* buf,
              int buf_len,
-             struct ms_header* header,
+             struct ms_header** header,
              char** data,
              int* data_len);
 

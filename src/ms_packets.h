@@ -8,7 +8,7 @@
 #include "addrport.h"
 
 struct ms_packet {
-    struct ms_header header;
+    struct ms_header* header;
     char* data;
     int data_size;
 };
@@ -23,6 +23,8 @@ struct ms_received_packet {
 };
 
 void packet_init(struct ms_packet*);
+
+void packet_clear(struct ms_packet*);
 
 void packet_free(struct ms_packet*);
 

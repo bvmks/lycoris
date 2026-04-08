@@ -4,9 +4,13 @@
 #include "ms_packets.h"
 #include "ms_session.h"
 #include "ms_connection.h"
-#include "ms_msg_types.h"
 #include "addrport.h"
 #include "ms_communicate.h"
+
+enum {
+    net_error = -1,
+    pkg_damaged = -2,
+};
 
 /*
  * sends control packet
@@ -22,10 +26,8 @@ int ms_send_confirm(int sockfd, struct ms_connection* p, unsigned short seq);
 *  header will be filled with session id, current seq and type/opt specified
 *  increases session seq num and places packet into perr sent list
 */
-int ms_send(int sockfd,
+int ms_send_post(int sockfd,
             struct ms_connection* c,
-            unsigned short type,
-            unsigned short opt,
             const char* buf,
             int buf_len);
 
