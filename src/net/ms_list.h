@@ -3,11 +3,13 @@
 
 #include "ms_pqueue.h"
 
+struct ms_mask {
+    unsigned long long mask; /* mask for last 64 packages*/
+    unsigned short last_seq; /* sequence number of last package */
+};
+
 struct _ms_list{
-    struct ms_mask {
-        unsigned long long mask; /* mask for last 64 packages*/
-        unsigned short last_seq; /* sequence number of last package */
-    } mask;
+    struct ms_mask mask;
     struct ms_pqueue queue;
 };
 
