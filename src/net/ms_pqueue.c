@@ -35,19 +35,26 @@ int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
     else {
         queue->tail->next = malloc(sizeof(struct ms_pqueue_node));
         packet_copy(&queue->tail->next->packet, src);
-        queue->tail->next->packet = *src;
         queue->tail = queue->tail->next;
+        queue->tail->next = NULL;
     }
     queue->size++;
     return 0;
 }
 
-int pqueue_pop (struct ms_pqueue* queue, struct ms_packet* dst)
+int pqueue_pop(struct ms_pqueue* queue, struct ms_packet* dst)
 {
     if (dst != NULL) {
         packet_move(dst, &queue->head->packet);
     }
-    queue->head = queue->head->next;
+
+    packet_free(&queue->head->packet);
+    free(queue->head);
+    if (queue->head != queue->tail) {
+        queue->head = queue->head->next;
+    }
+    queue->size--;
+
     return 0;
 }
 
