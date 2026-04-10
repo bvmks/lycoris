@@ -1,6 +1,8 @@
 #ifndef _MS_SESSION_H
 #define _MS_SESSION_H
 
+#include "ms_list.h"
+
 #include "addrport.h"
 #include "ms_crypto_ctx.h"
 #include "ms_nonce.h"
@@ -40,12 +42,12 @@ struct ms_udp_session {
 };
 
 
-/*
+
 struct ms_session {
     struct _ms_list recvd, sent;
     unsigned short id;
 };
-*/
+
 
 /*
  * used to generate random number 
@@ -59,8 +61,6 @@ unsigned short generate_id(unsigned int key);
 
 void mss_udp_session_init(struct ms_udp_session* s, unsigned short id);
 
-/*
 void session_init(struct ms_session* session, unsigned short id);
-*/
 
 #endif

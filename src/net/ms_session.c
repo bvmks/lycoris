@@ -8,7 +8,9 @@ unsigned short generate_id(unsigned int key)
     return ip_key ^ (unsigned short)rand();
 }
 
-// void session_init(struct ms_session* session, unsigned short id)
-// {
-//
-// }
+void session_init(struct ms_session* session, unsigned short id)
+{
+    session->id = id;
+    list_init(&session->recvd);
+    list_init(&session->sent);
+}
