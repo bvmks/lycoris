@@ -2,8 +2,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "../src/ms_proto.h"
-#include "../src/socks.h"
+#include "../src/net/ms_proto.h"
+#include "../src/net/socks.h"
 
 enum {
     port = 24880
