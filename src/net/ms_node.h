@@ -1,17 +1,16 @@
 #ifndef _MS_NODE_H
 #define _MS_NODE_H
 
+#include "crypdf.h"
+
+struct ms_node_config {
+    unsigned char node_id[node_id_size];
+    unsigned char secret[node_secret_size];
+    unsigned char public_key[public_key_size];
+};
+
 struct ms_node {
-    unsigned char id_priv[64]; 
-    unsigned char id_pub[32];
-
-    unsigned char pass_master_pub[32]; 
-    unsigned char pass_master_priv[64];
-
-    char node_name[64];
-    
-    // 3. База доверия
-    struct trusted_node* contacts; // Список тех, чьи id_pub мы знаем
+    struct ms_node_config cfg;
 };
 
 #endif
