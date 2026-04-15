@@ -1,22 +1,38 @@
 #ifndef _MS_NODE_H
 #define _MS_NODE_H
 
-#include "crypdf.h"
+#include "ms_nodeid.h"
 #include "ms_nodecfg.h"
+#include "ms_sess_collection.h"
 
-struct ms_node_id {
-    unsigned char secret[node_secret_size];
-    unsigned char public_key[public_key_size];
-    unsigned char node_id[node_id_size];
+/* start_node error codes */
+enum {
+    mssn_no_config = -1,
+    mssn_no_seed = -2,
+};
+
+enum ms_node_state {
+    msns_init,
+    msns_active,
+    msns_terminated,
 };
 
 struct ms_node {
-    struct ms_node_id identity;
-    struct ms_node_config cfg;
+    int sock;
+    struct ms_nodeid_file* id;
+
+    struct ms_sess_collection sessions;
+    enum ms_node_state state;
+
+    struct ms_node_cfg* the_cfg;
 };
 
 struct ms_node* make_node();
+void set_node_cfg(struct ms_node*n, struct ms_node_cfg* cfg);
+int load_node_id(struct ms_node*n);
+int start_node(struct ms_node* n);
+int kill_node(struct ms_node* n);
 
-int ms_node_load(struct ms_node* n, const char* cfg_path);
+void dispose_node(struct ms_node* n);
 
 #endif
