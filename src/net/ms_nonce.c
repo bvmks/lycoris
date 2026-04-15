@@ -1,4 +1,12 @@
 #include "ms_nonce.h"
+#include "ms_keyutils.h"
+#include <string.h>
+
+void ms_nonce_init_rand(struct ms_nonce* n)
+{
+    memset(n, 0, sizeof(*n));
+    get_random(&n->next_to_send, sizeof(n->next_to_send)/2);
+}
 
 int ms_nonce_chdup(const struct ms_nonce* nonce, unsigned long long n)
 {
