@@ -13,12 +13,17 @@ void ipport2str(char *str, unsigned int ip, unsigned short port)
                  port);
 }
 
-void str2ipport(unsigned int *ip, unsigned short *port, char* str)
+void str2ipport(unsigned int *ip, unsigned short *port, const char* str)
 {
     static char str_ip[sizeof("255.255.255.255")], str_port[sizeof("65535")];
     sscanf(str, "%[0-9.]:%s", str_ip, str_port);
     str2ip(ip, str_ip);
     str2port(port, str_port);
+}
+
+int addrport_equal(const struct addrport* a, const struct addrport* b)
+{
+    return(a->addr == b->addr && a->port == b->port);
 }
 
 void str2ip(unsigned int *ip, const char* str)
