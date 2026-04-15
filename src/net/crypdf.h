@@ -4,6 +4,7 @@
 enum {
     secret_key_size = 64,
     public_key_size = 32,
+    
 
     kex_secret_size = 32,
     kex_public_size = 32,
@@ -14,7 +15,7 @@ enum {
 
     node_id_size = 10,
 
-    rx_key_size,
+    rx_key_size = 32,
     tx_key_size = rx_key_size,
 };
 
