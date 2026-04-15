@@ -1,11 +1,17 @@
 #ifndef _MS_PROTOCOL_H
 #define _MS_PROTOCOL_H
 
+#include "ms_node.h"
+
+#include "addrport.h"
+
 #include "ms_packets.h"
 #include "ms_session.h"
 #include "ms_connection.h"
-#include "addrport.h"
 #include "ms_communicate.h"
+
+
+#include "ms_node.h"
 
 enum {
     net_error = -1,
