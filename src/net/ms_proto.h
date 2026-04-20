@@ -3,15 +3,17 @@
 
 #include "ms_node.h"
 
+int ms_init_session_with(struct ms_node* node, unsigned int ip, unsigned short port);
+
+
+
+#if 0
 #include "addrport.h"
 
 #include "ms_packets.h"
 #include "ms_session.h"
 #include "ms_connection.h"
 #include "ms_communicate.h"
-
-
-#include "ms_node.h"
 
 enum {
     net_error = -1,
@@ -39,6 +41,6 @@ int ms_send_post(int sockfd,
 
 
 int ms_recv_packet(int sockfd, struct ms_received_packet* p);
-
+#endif
 
 #endif

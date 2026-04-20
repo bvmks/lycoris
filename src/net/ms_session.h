@@ -4,7 +4,7 @@
 #include "ms_list.h"
 
 #include "addrport.h"
-#include "ms_crypto_ctx.h"
+#include "ms_comm_ctx.h"
 #include "ms_nonce.h"
 
 enum {
@@ -19,7 +19,20 @@ enum {
     mss_client,
 };
 
-enum ms_us_state {
+
+enum mss_authtype {
+    mss_trust, /* we just exchange kex keys, and believe all good*/
+    mss_pass,  /* we use some shared pass (or like global id), to sign kex keys */
+    mss_known, /* we have previously established connection(with 1 or 2 auth type)
+                  and exchange locals ids witch each other, so now we can require 
+                  this type of auth
+                */
+    mss_cert,  /* Probably won't be implemented, this when known node signed us 
+                  some id, so we can auth with it
+                */
+};
+
+enum mss_state {
     ms_us_stub,
     ms_us_init,
     ms_us_handshake,
@@ -29,19 +42,15 @@ enum ms_us_state {
 };
 
 struct ms_udp_session {
-    int sockfd;
     struct addrport remote_addr;
-    enum ms_us_state state;
+    enum mss_state state;
+    char side; /*we are on server or client side*/
+    enum mss_authtype auth_type;
+    struct ms_crypto_comm_ctx comctx;
 
-    int side; /* a.k.a we are server or client */
-    struct ms_handshake_ctx* hctx;
-
-    unsigned char rx_key[rx_key_size];
-    unsigned char tx_key[tx_key_size];
-    struct ms_nonce nonce;
-
-    unsigned long created_at;
-    unsigned long last_activity;
+    unsigned long long created_at;
+    unsigned long long last_rx;
+    unsigned long long last_tx;
 };
 
 

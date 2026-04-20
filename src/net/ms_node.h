@@ -8,7 +8,7 @@
 /* start_node error codes */
 enum {
     mssn_no_config = -1,
-    mssn_no_seed = -2,
+    mssn_no_id = -2,
 };
 
 enum ms_node_state {

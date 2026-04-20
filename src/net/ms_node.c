@@ -5,6 +5,7 @@
 #include "../message.h"
 #include "ms_sess_collection.h"
 #include "../fileutil.h"
+#include "socks.h"
 
 struct ms_node* make_node()
 {
@@ -65,6 +66,7 @@ int kill_node(struct ms_node* n)
 
 int start_node(struct ms_node *n)
 {
+    int sock;
     if(!n->the_cfg) {
         message_perror(mlv_normal, "ERROR", "node config not set");
         return mssn_no_config;
@@ -72,10 +74,14 @@ int start_node(struct ms_node *n)
 
     if(!n->id) {
         message_perror(mlv_normal, "ERROR", "node id not set");
-        return mssn_no_config;
+        return mssn_no_id;
     }
-
-
+    
+    sock = make_sock(SOCK_DGRAM, n->the_cfg->listen_ip, n->the_cfg->listen_port);
+    if(sock == -1) {
+        return -1;
+    }
+    n->sock = sock;    
     n->state = msns_active;
     return 0;
 }

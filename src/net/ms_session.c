@@ -4,23 +4,26 @@
 #include "ms_session.h"
 #include "utils.h"
 
-
 struct ms_udp_session* make_udp_session()
 {
     struct ms_udp_session* s;
     s = malloc(sizeof(*s));
+    s->state = ms_us_stub;
+    s->side = 0;
+    s->auth_type = 0;
     s->created_at = 0;
-    s->last_activity = 0;
-    s->hctx = NULL;
-    ms_nonce_init_rand(&s->nonce);
-    s->remote_addr.addr = 0;
-    s->remote_addr.port = 0;
-    memset(s->rx_key, 0 , rx_key_size);
-    memset(s->tx_key, 0 , tx_key_size);
+    s->last_rx = 0;
+    s->last_tx = 0;
+    s->remote_addr.addr = INADDR_ANY;
+    s->remote_addr.port = -1;
+    comctx_init(&s->comctx);
     return s;
 }
 
-void dispose_udp_session(struct ms_udp_session* s);
+void dispose_udp_session(struct ms_udp_session* s)
+{
+    free(s);
+}
 
 
 void ms_udp_session_init(struct ms_udp_session *s)

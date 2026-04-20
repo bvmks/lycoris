@@ -4,8 +4,8 @@
 
 void ms_nonce_init_rand(struct ms_nonce* n)
 {
-    memset(n, 0, sizeof(*n));
-    get_random(&n->next_to_send, sizeof(n->next_to_send)/2);
+    fill_noise((unsigned char*)n->local, sizeof(n->local));
+    ((unsigned char*)n->local)[sizeof(n->local)-1] = 1;
 }
 
 int ms_nonce_chdup(const struct ms_nonce* nonce, unsigned long long n)
@@ -39,7 +39,12 @@ void ms_nonce_mark(struct ms_nonce* nonce, unsigned long long n)
 
 unsigned long long ms_nonce_get_next(struct ms_nonce * nonce)
 {
-    unsigned long long next = nonce->next_to_send;
-    nonce->next_to_send++;
-    return next;
+    nonce->local++;
+    return nonce->local;
+}
+
+void fill_nounce(struct ms_nonce* nonce, unsigned char* buf)
+{
+    nonce->local++;
+    memcpy(buf, &nonce->local, sizeof(nonce->local));
 }
