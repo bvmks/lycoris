@@ -3,55 +3,70 @@
 
 #include "ms_list.h"
 
+#include "addrport.h"
+#include "ms_comm_ctx.h"
+#include "ms_nonce.h"
+
 enum {
     ms_session_timeout = 3,
-    ms_start_seq = 0
+    ms_start_nonce = 0,
+
+
+    mss_tcp,
+    mss_udp,
+
+    mss_server,
+    mss_client,
 };
 
 
-enum ms_session_state {
-    mss_init,
-    mss_handshake,
-    mss_cancelling,
-    mss_terminated,
+enum mss_authtype {
+    mss_trust, /* we just exchange kex keys, and believe all good*/
+    mss_pass,  /* we use some shared pass (or like global id), to sign kex keys */
+    mss_known, /* we have previously established connection(with 1 or 2 auth type)
+                  and exchange locals ids witch each other, so now we can require 
+                  this type of auth
+                */
+    mss_cert,  /* Probably won't be implemented, this when known node signed us 
+                  some id, so we can auth with it
+                */
 };
 
-struct ms_session {
-    unsigned int session_id;
-    enum ms_session_state state;
-    struct node_info* node;
+enum mss_state {
+    ms_us_stub,
+    ms_us_init,
+    ms_us_handshake,
+    ms_us_active,
+    ms_us_cancelling,
+    ms_us_terminated,
+};
 
+struct ms_udp_session {
     struct addrport remote_addr;
+    enum mss_state state;
+    char side; /*we are on server or client side*/
+    enum mss_authtype auth_type;
+    struct ms_crypto_comm_ctx comctx;
 
-    unsigned char eph_priv[32];
-    unsigned char eph_pub[32];
-    unsigned char remote_eph_pub[32];
-
-    unsigned char shared_secret[32];
-
-    unsigned long last_remote_nonce;
-    unsigned long local_nonce_counter;
-
-    unsigned long created_at;
-    unsigned long last_activity;
+    unsigned long long created_at;
+    unsigned long long last_rx;
+    unsigned long long last_tx;
 };
 
-/*
+
+
 struct ms_session {
     struct _ms_list recvd, sent;
     unsigned short id;
 };
-*/
 
-/*
- * used to generate random number 
- * based on key specified
-*/
-unsigned short generate_id(unsigned int key);
 
-/*
-*  used to generate session
-*/
+struct ms_udp_session* make_udp_session();
+void dispose_udp_session(struct ms_udp_session* s);
+
+void ms_udp_session_init(struct ms_udp_session* s);
+
+
 void session_init(struct ms_session* session, unsigned short id);
 
 #endif

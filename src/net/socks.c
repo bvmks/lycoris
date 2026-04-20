@@ -4,6 +4,7 @@
 #include <unistd.h>
 
 #include "socks.h"
+#include "../message.h"
 
 int make_sock(int type, unsigned int addr, unsigned short port)
 {
@@ -14,7 +15,7 @@ int make_sock(int type, unsigned int addr, unsigned short port)
     own_addr.sin_port = htons(port);
     own_addr.sin_addr.s_addr = htonl(addr);
     
-    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    sockfd = socket(AF_INET, type, 0);
     if(sockfd == -1) 
         goto error;
     ok = bind(sockfd, (struct sockaddr*)&own_addr, sizeof(own_addr));
@@ -24,6 +25,7 @@ int make_sock(int type, unsigned int addr, unsigned short port)
     return sockfd;
 
 error: {
+        message_perror(mlv_alert, "ERROR", "unable to create socket");
         close(sockfd);
         return -1;
     }

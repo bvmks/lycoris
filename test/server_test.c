@@ -5,9 +5,9 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <time.h>
-#include "../src/ms_proto.h"
-#include "../src/socks.h"
-#include "../src/addrport.h"
+#include "../src/net/ms_proto.h"
+#include "../src/net/socks.h"
+#include "../src/net/addrport.h"
 
 enum {
     def_port = 24880

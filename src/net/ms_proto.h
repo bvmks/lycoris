@@ -1,10 +1,18 @@
 #ifndef _MS_PROTOCOL_H
 #define _MS_PROTOCOL_H
 
+#include "ms_node.h"
+
+int ms_init_session_with(struct ms_node* node, unsigned int ip, unsigned short port);
+
+
+
+#if 0
+#include "addrport.h"
+
 #include "ms_packets.h"
 #include "ms_session.h"
 #include "ms_connection.h"
-#include "addrport.h"
 #include "ms_communicate.h"
 
 enum {
@@ -33,6 +41,6 @@ int ms_send_post(int sockfd,
 
 
 int ms_recv_packet(int sockfd, struct ms_received_packet* p);
-
+#endif
 
 #endif
