@@ -41,12 +41,19 @@ enum mss_state {
     ms_us_terminated,
 };
 
-struct ms_udp_session {
-    struct addrport remote_addr;
-    enum mss_state state;
-    char side; /*we are on server or client side*/
-    enum mss_authtype auth_type;
+struct ms_peer {
+    unsigned int ip;
+    unsigned short port;
+
+    int state;
+
     struct ms_crypto_comm_ctx comctx;
+
+    char init_assoc;
+    unsigned char id[node_id_size];
+    unsigned char public_key[public_key_size];/* remote sign key*/
+
+
 
     unsigned long long created_at;
     unsigned long long last_rx;
@@ -54,18 +61,39 @@ struct ms_udp_session {
 };
 
 
+struct ms_peer* make_peer();
+void dispose_peer(struct ms_peer* s);
+
+void ms_peer_init(struct ms_peer* s);
+
+
+
+struct ms_peer_el {
+    struct ms_peer *peer;
+    struct ms_peer_el *next;
+};
+
+struct ms_peer_collection {
+    struct ms_peer_el *head;
+    size_t count;
+};
+
+void ms_sess_coll_init(struct ms_peer_collection *coll);
+
+int  ms_sess_coll_add(struct ms_peer_collection *coll, struct ms_peer *s);
+void ms_sess_coll_remove(struct ms_peer_collection *coll, struct ms_peer *s);
+
+struct ms_peer* ms_sess_coll_find(struct ms_peer_collection *coll, const struct addrport *addr);
+
+void ms_sess_coll_cleanup(struct ms_peer_collection *coll);
+
+int mss_sess_get_num_of_el(struct ms_peer_collection* coll);
+
 
 struct ms_session {
     struct _ms_list recvd, sent;
     unsigned short id;
 };
-
-
-struct ms_udp_session* make_udp_session();
-void dispose_udp_session(struct ms_udp_session* s);
-
-void ms_udp_session_init(struct ms_udp_session* s);
-
 
 void session_init(struct ms_session* session, unsigned short id);
 

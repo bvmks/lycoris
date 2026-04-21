@@ -7,10 +7,9 @@ int comctx_init(struct ms_crypto_comm_ctx *ctx)
 {
     int res;
 
-    memset(ctx->rx_key, 0, cipher_key_size);
-    memset(ctx->tx_key, 0, cipher_key_size);
+    memset(ctx->encrypt_key, 0, cipher_key_size);
+    memset(ctx->decrypt_key, 0, cipher_key_size);
     memset(ctx->remote_kex_public, 0, cipher_key_size);
-    memset(ctx->remote_public_key, 0, public_key_size);
 
     res = get_random(&ctx->kex_secret, sizeof(ctx->kex_secret));
     if(!res)
@@ -47,5 +46,27 @@ void derive_keys(const unsigned char *local_secret,
     }
 
     crypto_wipe(s, sizeof(s));
+}
+
+
+void set_plain_dgram_head(unsigned char *dgram, int cmd)
+{
+    unsigned char uc;
+
+    dgram[0] = rand_from_range(ms_zb_plain_min, ms_zb_plain_max);
+    uc = dgram[0] & 0x0f;
+    uc |= (uc << 4) & 0xf0;
+    dgram[1] = cmd ^ uc;
+}
+
+int get_plain_dgram_cmd(const unsigned char *dgram)
+{
+    unsigned char uc;
+
+    if(*dgram < 0xE0)
+        return -1;
+
+    uc = (dgram[0] & 0x0f) | ((dgram[0] << 4) & 0xf0);
+    return dgram[1] ^ uc;
 }
 

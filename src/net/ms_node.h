@@ -3,7 +3,7 @@
 
 #include "ms_nodeid.h"
 #include "ms_nodecfg.h"
-#include "ms_sess_collection.h"
+#include "ms_peer.h"
 
 /* start_node error codes */
 enum {
@@ -21,7 +21,7 @@ struct ms_node {
     int sock;
     struct ms_nodeid_file* id;
 
-    struct ms_sess_collection sessions;
+    struct ms_peer_collection peers;
     enum ms_node_state state;
 
     struct ms_node_cfg* the_cfg;

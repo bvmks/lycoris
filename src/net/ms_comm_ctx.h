@@ -8,9 +8,8 @@ struct ms_crypto_comm_ctx {
     unsigned char kex_secret[kex_secret_size];
     unsigned char kex_public[kex_public_size];
     unsigned char remote_kex_public[kex_public_size];
-    unsigned char remote_public_key[public_key_size];/* sign key*/
-    unsigned char rx_key[cipher_key_size];
-    unsigned char tx_key[cipher_key_size];
+    unsigned char decrypt_key[cipher_key_size];
+    unsigned char encrypt_key[cipher_key_size];
     struct ms_nonce nonce;
 };
 
@@ -24,5 +23,32 @@ void derive_keys(const unsigned char *local_secret,
                  const unsigned char *remote_pub_key,
                  unsigned char *encrypt_key,
                  unsigned char *decrypt_key);
+
+enum {
+    ms_min_dgram        = 64,
+    ms_max_dgram        = 508,
+    ms_min_payload      = 40,
+
+    ms_zv_cmd_enc_min   = 0x00,
+    ms_zb_cmd_enc_max   = 0xE0,       
+    ms_zb_plain_min     = ms_zb_cmd_enc_max + 1,       
+    ms_zb_plain_max     = 0xFF,       
+
+    ms_cmd_echo_request = 0xEC,         /* Commands */
+    ms_cmd_echo_reply   = 0xED,
+    ms_cmd_associate    = 0xAC,
+    ms_cmd_intro_req    = 0x0A,
+    ms_cmd_intro_reply  = 0xA0,
+    ms_cmd_error        = 0xEE,
+    
+
+
+};
+
+const char *ms_err_diags(int code);
+
+void set_plain_dgram_head(unsigned char *dgram, int cmd);
+
+int get_plain_dgram_cmd(const unsigned char *dgram);
  
 #endif

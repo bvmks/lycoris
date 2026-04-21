@@ -3,7 +3,6 @@
 
 #include "ms_node.h"
 #include "../message.h"
-#include "ms_sess_collection.h"
 #include "../fileutil.h"
 #include "socks.h"
 
@@ -17,7 +16,7 @@ struct ms_node* make_node()
     node->sock = -1;
     node->the_cfg = NULL;
     node->id = NULL;
-    ms_sess_coll_init(&node->sessions);
+    ms_sess_coll_init(&node->peers);
 
     return node;
 }
