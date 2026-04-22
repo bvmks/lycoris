@@ -46,15 +46,17 @@ int  pqueue_pop (struct ms_pqueue* queue, struct ms_packet* src);
 
 
 /*
- * used to get queue element at specified position
+ * used to get queue element at specified position.
  * returns -1 if pos was specified incorrectly
 */
-int pqueue_get(const struct ms_pqueue* queue, struct ms_packet* dst, unsigned int pos);
+int pqueue_get(const struct ms_pqueue* queue, struct ms_packet* dst, 
+               unsigned int pos);
 
 /*
- * used to get pointer to queue element at specified position
+ * used to get pointer to queue element at specified position.
  * returns NULL if pos was specified incorrectly
 */
-struct ms_packet* pqueue_peek(const struct ms_pqueue* queue, unsigned int pos);
+struct ms_packet* pqueue_peek(const struct ms_pqueue* queue, 
+                              unsigned int pos);
 
 #endif

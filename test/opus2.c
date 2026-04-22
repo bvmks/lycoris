@@ -21,6 +21,11 @@ typedef struct {
     int ready;
 } AudioData;
 
+struct {
+    unsigned int chunks;
+    unsigned char packet[PACKET_SIZE];
+} audio_packet;
+
 static int recordCallback(const void *inputBuffer, void *outputBuffer,
                            unsigned long framesPerBuffer,
                            const PaStreamCallbackTimeInfo* timeInfo,
