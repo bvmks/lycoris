@@ -36,7 +36,6 @@ static void calculate_timeout(struct ms_node* n, struct timespec* tm)
 
 static void prepare_sig_handlers(struct sue_event_selector* s) {
     struct sue_signal_handler h;
-    sue_sel_register_signal(s, &h);
 }
 
 
@@ -59,12 +58,6 @@ static int ensure_wdir()
     return res;
 }
 
-void prepare_fd_handler(struct sue_event_selector* s)
-{
-    struct sue_fd_handler* h;
-    h = malloc(sizeof(*h));
-}
-
 int main(int argc, char** argv)
 {
     struct sue_event_selector selector;
@@ -73,32 +66,41 @@ int main(int argc, char** argv)
     int res;
     
     ensure_wdir();
+    message_set_verbosity(mlv_debug2);
+
+
+    sue_alloc_init_default();
+
+    sue_sel_init(&selector);
+    message(mlv_debug, "[DEBUG] selector initialized...\n");
+    prepare_sig_handlers(&selector);
 
     /*
      * config "hadcoded" just for now...
      * i will make (steal) text parser for cfg loading later (maybe)
     */
     node_cfg = make_node_def_cfg();
-    node = make_node(&selector, node_cfg);
+    message(mlv_debug, "[DEBUG] config initialized...\n");
 
+    node = make_node(&selector, node_cfg);
     if(!node) {
         message(mlv_alert, "[FATAL] Failed to make node, quitting...\n");
+        return -1;
     }
+    message(mlv_debug, "[DEBUG] node made...\n");
 
     if(!start_node(node))
     {
         message(mlv_alert, "[FATAL] Failed to start node, quitting...\n");
+        return -1;
     }
     message(mlv_normal, "Started node: %s\n", hexdata2a(node->id->node_id, node_id_size));
 
-    sue_sel_init(&selector);
-    prepare_fd_handler(&selector);
-    prepare_sig_handlers(&selector);
 
 
-    fprintf(stderr, "[DEBUG] Entering main loop\n");
+    message(mlv_debug, "[DEBUG] Entering main loop...\n");
     res = sue_sel_go(&selector);
-    fprintf(stderr, "[DEBUG] Quitting main loop\n");
+    message(mlv_debug, "[DEBUG] Quitting main loop...\n");
     
     return 0;
 }

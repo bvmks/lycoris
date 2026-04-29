@@ -256,7 +256,7 @@ static void the_timeout_hdl(struct sue_timeout_handler *hdl)
     struct ms_node *node = hdl->userdata;
     /* todo: */
 
-    message(mlv_debug2, "the_timeout_hdl called");
+    message(mlv_debug2, "the_timeout_hdl called\n");
 
     // peers_timer_hook(node->peers);
 
@@ -321,7 +321,7 @@ int start_node(struct ms_node *node)
                         node->the_cfg->listen_port);
     if(sfd == -1){
         message(mlv_alert, "[FATAL] Unable to create socket\n");
-        return -1;
+        return 0;
     }
 
     /* success */
@@ -333,6 +333,6 @@ int start_node(struct ms_node *node)
     sue_timeout_set_from_now(&node->tmo_h, housekeeping_start_delay, 0);
     sue_sel_register_timeout(node->the_selector, &node->tmo_h);
 
-    return 0;
+    return 1;
 }
 

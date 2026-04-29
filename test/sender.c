@@ -2,18 +2,19 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include "../src/net/ms_proto.h"
-#include "../src/net/socks.h"
+
+#include "../src/socks.h"
+#include "../src/addrport.h"
+#include "../src/ms_rx.h"
 
 enum {
-    port = 24880
+    port = 24881
 };
 
 int main(int argc, char **argv)
 {
-    int sockfd, peer_id, msg_len, ok;
+    int sockfd, msg_len, ok;
     struct addrport dst;
-    struct ms_connection peer;
     char buf[1000];
     // char buf[] =  "bebra";
 
@@ -24,17 +25,15 @@ int main(int argc, char **argv)
     
     str2addrport(&dst, argv[1]);
     sockfd = make_sock(SOCK_DGRAM, INADDR_ANY, port);
-    peer_id = generate_id(dst.addr);
-    connection_init(&peer, &dst, peer_id);
 
     for(;;) {
-        printf(">>");
-        ok = scanf("%s", buf);
-        if(ok == 1) {
-            // usleep(1000);
+        // printf(">>");
+        // ok = scanf("%s", buf);
+        // if(ok == 1) {
+            usleep(100);
             msg_len = strlen(buf);
-            ms_send_post(sockfd, &peer, buf, msg_len+1);
-        }
+            send_to(sockfd, dst.addr, dst.port, buf, msg_len+1);
+        // }
     }
 
     return 0;
