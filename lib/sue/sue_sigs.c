@@ -1,8 +1,8 @@
-#include "sighandle.h"
 #include <signal.h>
+#include "sue_sigs.h"
 
 #ifndef _NSIG
-#define _NSIG 64
+#define _NSIG 64   /* usually this constant is defined in system headers */
 #endif
 
 #ifndef NULL
@@ -14,18 +14,23 @@ static int sighdl_count[_NSIG];  /* currenly active handlers per signal */
 static struct sigaction saved_sigactions[_NSIG];
 static volatile sig_atomic_t signal_counters[_NSIG];
 
+/* we assume signals are numbered from 1 to _NSIG */
+
 static void the_handler(int signo)
 {
-    if(signo < 1 || signo > _NSIG)
+    if(signo < 1 || signo > _NSIG)   /* paranoid check :-) */
         return;
     signal_counters[signo-1]++;
 }
 
 void sue_signals_init()
 {
+    /* actually, we rely on the .BSS being zero-filled by the OS,
+       and so there's really nothing to do here
+     */
 }
 
-void signals_add(int signo)
+void sue_signals_add(int signo)
 {
     if(signo < 1 || signo > _NSIG)
         return;
@@ -39,7 +44,7 @@ void signals_add(int signo)
     }
 }
 
-void signals_remove(int signo)
+void sue_signals_remove(int signo)
 {
     if(signo < 1 || signo > _NSIG)
         return;
@@ -49,41 +54,15 @@ void signals_remove(int signo)
     }
 }
 
-int signals_get_counter(int signo)
+int sue_signals_get_counter(int signo)
 {
     return signal_counters[signo-1];
 }
 
-void signals_zero_counters()
+void sue_signals_zero_counters()
 {
     int i;
     for(i = 0; i < _NSIG; i++)
         signal_counters[i] = 0;
-}
-
-struct signal_handler {
-    int signo;
-
-    void *userdata;
-
-    void (*handle_signal)(struct signal_handler*, int signo);
-};
-
-struct sel_signal_item {
-    struct signal_handler* h;
-    struct sel_signal_item* next;
-};
-
-void handle_signal_events(const struct sel_signal_item *list)
-{
-    const struct sel_signal_item *p = list;
-    while(p) {
-        const struct sel_signal_item *nx = p->next;
-        int cnt = signals_get_counter(p->h->signo);
-        if(cnt > 0)
-            p->h->handle_signal(p->h, cnt);
-        p = nx;
-    }
-    signals_zero_counters();
 }
 

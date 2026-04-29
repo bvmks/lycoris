@@ -7,6 +7,9 @@
 #include "ms_comm_ctx.h"
 #include "ms_nonce.h"
 
+#include "ms_nodecfg.h"
+#include "ms_rx.h"
+
 enum {
     ms_peerion_timeout = 3,
     ms_start_nonce = 0,
@@ -78,7 +81,7 @@ struct ms_peer_collection {
     size_t count;
 };
 
-struct ms_peer_collection* make_peer_collection();
+struct ms_peer_collection* make_peer_collection(struct ms_node* node, struct ms_node_cfg* cfg);
 
 struct ms_peer* get_peer(struct ms_peer_collection* coll,
                          unsigned int ip, unsigned short port, int add);

@@ -4,7 +4,7 @@
 #include <unistd.h>
 
 #include "socks.h"
-#include "../message.h"
+#include "message.h"
 
 int make_sock(int type, unsigned int addr, unsigned short port)
 {
@@ -25,7 +25,6 @@ int make_sock(int type, unsigned int addr, unsigned short port)
     return sockfd;
 
 error: {
-        message_perror(mlv_alert, "ERROR", "unable to create socket");
         close(sockfd);
         return -1;
     }

@@ -3,9 +3,10 @@
 #include <string.h>
 
 #include "ms_nodeid.h"
-#include "../hexdata.h"
-#include "../message.h"
-#include "../../lib/monocypher/monocypher.h"
+#include "hexdata.h"
+#include "message.h"
+#include "fileutil.h"
+#include "../lib/monocypher/monocypher.h"
 
 
 void nodeid_init(struct ms_nodeid_file* ni)
@@ -52,6 +53,24 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
     
     crypto_wipe(ni->secret, node_secret_size);
     return 0;
+}
+
+struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg)
+{
+    struct ms_nodeid_file* id;
+    char* keyfile;
+    int lfail;
+
+    id = malloc(sizeof(*id));
+    keyfile = concat_path(cfg->keys_dir, "id");
+    lfail = load_nodeid_file(id, keyfile);
+    free(keyfile);
+    if(lfail) {
+        dispose_nodeid(id);
+        free(id);
+        return NULL;
+    }
+    return id;
 }
 
 void dispose_nodeid(struct ms_nodeid_file* ni)

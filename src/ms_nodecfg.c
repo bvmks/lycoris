@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 #include "ms_nodecfg.h"
-#include "../fileutil.h"
+#include "fileutil.h"
 
 struct ms_node_cfg* make_node_cfg()
 {

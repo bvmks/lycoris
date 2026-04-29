@@ -1,0 +1,15 @@
+The previous versions of the SUE (Simple Unix Events) library were written
+in C++; the latest of them is 0.3.*.
+
+This version (the 0.4.*) is intended to become (partially) compatible with
+the older versions one day by providing the appropriate C++ wrappers.
+However, the main intention was to reimplement this library in plain C to
+let plain C projects use it.  It is still object-oriented to some extent.
+Reimplementation of all the features of the former SUE and implementation
+of the C++ classes to serve as the wrappers is still to be done; consider
+all this as a work-in-progress.
+
+The author doesn't know anything about third-party projects using SUE, so
+considered breaking the backwards compatibility for some time not a real
+problem.  If, however, you need the C++ version, please use the 0.3.* as of
+now.

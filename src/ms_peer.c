@@ -25,10 +25,13 @@ void dispose_peer(struct ms_peer* s)
     free(s);
 }
 
-struct ms_peer_collection* make_peer_collection()
+
+struct ms_peer_collection* make_peer_collection(struct ms_node* node, struct ms_node_cfg* cfg)
 {
     struct ms_peer_collection* col;
     col = malloc(sizeof(*col));
+    col->count = 0;
+    col->head = NULL;
     return col;
 }
 

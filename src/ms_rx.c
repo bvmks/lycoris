@@ -1,12 +1,34 @@
-#include "ms_rx.h"
-#include "addrport.h"
-#include "../message.h"
-#include "ms_comm_ctx.h"
-#include "../../lib/monocypher/monocypher.h"
-
 #include <arpa/inet.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
+
+#include "ms_rx.h"
+#include "ms_nodeid.h"
+#include "ms_nodecfg.h"
+#include "ms_comm_ctx.h"
+#include "ms_txq.h"
+#include "ms_peer.h"
+#include "socks.h"
+
+#include "addrport.h"
+#include "message.h"
+#include "fileutil.h"
+#include "keyutils.h"
+#include "ms_rx.h"
+
+#include "../lib/monocypher/monocypher.h"
+
+
+/* housekeeping_interval is how often we awake to make some routine
+ * like check peers for timeouts
+ */
+enum {
+    housekeeping_start_delay = 1,
+    housekeeping_interval    = 10
+};
+
+
 
 unsigned long long generate_cookie(struct ms_node* n, unsigned int ip, unsigned short port)
 {
@@ -19,7 +41,7 @@ unsigned long long generate_cookie(struct ms_node* n, unsigned int ip, unsigned 
     memcpy(input + sizeof(ip) + sizeof(port), &timeslot, sizeof(timeslot));
 
     crypto_blake2b_keyed((uint8_t*)&cookie, sizeof(cookie),
-                         n->cookish, cookish_size,
+                         n->id->cookish, cookish_size,
                          input, sizeof(input));
     return cookie;
 }
@@ -180,30 +202,137 @@ static void handle_incoming_dgram(struct ms_node* node,
     }
 
 }
- 
-int do_recv(struct ms_node* node) {
+
+
+static void the_fd_handler_write(struct sue_fd_handler* h) 
+{
+
+}
+
+static void the_fd_handler_read(struct sue_fd_handler* h)
+{
     unsigned char buf[2048];
     int rc;
     struct sockaddr_in addr;
     socklen_t addr_len = sizeof(addr);
     unsigned int ip;
     unsigned short port;
-
-    if(node->state != msns_active) return -1;
-
+    struct ms_node *node = h->userdata;
 
     message(mlv_debug, "handle_recv called\n");
-    rc = recvfrom(node->selector->fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
-    if(rc == -1) {
+    rc = recvfrom(node->fd_h.fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
+    if(rc == -1)
         message_perror(mlv_alert, "ALERT", "handle_recv");
-        return rc;
-    }
     ip = htonl(addr.sin_addr.s_addr);
     port = htons(addr.sin_port);
 
     message(mlv_debug, "received %d bytes from %s\n", rc, ipport2a(ip, port));
     
     handle_incoming_dgram(node, ip, port, buf, rc);
+}
+
+
+static void the_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
+{
+    struct ms_node *node = h->userdata;
+
+    message(mlv_debug2, "the_fd_handler called (%s)(%s)",
+                        r ? "r" : "-", w ? "w" : "-");
+
+    if(r)
+        the_fd_handler_read(h);
+    if(w)
+        the_fd_handler_write(h);
+    if(x)  /* WTF?! */
+        message(mlv_debug, "the_fd_handler want exeption? WTF?\n");
+
+    h->want_read = 1;
+    h->want_write = txq_want_write(node->txq);
+    h->want_except = 0;
+}
+
+static void the_timeout_hdl(struct sue_timeout_handler *hdl)
+{
+    struct ms_node *node = hdl->userdata;
+    /* todo: */
+
+    message(mlv_debug2, "the_timeout_hdl called");
+
+    // peers_timer_hook(node->peers);
+
+    node->fd_h.want_read = 1;
+    node->fd_h.want_write = txq_want_write(node->txq);
+    node->fd_h.want_except = 0;
+
+    sue_timeout_set_from_now(hdl, housekeeping_interval, 0);
+    sue_sel_register_timeout(node->the_selector, &node->tmo_h);
+}
+
+struct ms_node* make_node(struct sue_event_selector* s, struct ms_node_cfg* cfg)
+{
+    struct ms_node* node;
+    node = malloc(sizeof(*node));
+
+    node->fd_h.fd = -1;
+    node->fd_h.want_read = 1;
+    node->fd_h.want_write = 0;
+    node->fd_h.want_except = 0;
+    node->fd_h.userdata = node;
+    node->fd_h.handle_fd_event = &the_fd_handler;
+
+    node->tmo_h.userdata = node;
+    node->tmo_h.handle_timeout = &the_timeout_hdl;
+    node->the_selector = s;
+    node->the_cfg = cfg;
+
+    node->id = load_node_id(cfg);
+    if(!node->id) {
+        message(mlv_alert, "problems loading node id\n");
+        free(node);
+        return NULL;
+    }
+
+    node->peers = make_peer_collection(node, node->the_cfg);
+    node->txq = make_transmit_queue(s);
+
+    return node;
+}
+
+
+#if 0
+int load_node_cfg(struct ms_node* n, const char* fname)
+{
+    n->the_cfg = make_node_cfg();
+    return read_node_cfg_file(n->the_cfg, fname);
+}
+#endif
+
+int kill_node(struct ms_node* n)
+{
+    
+    return 0;
+}
+
+
+int start_node(struct ms_node *node)
+{
+    int sfd = make_sock(SOCK_DGRAM, 
+                        node->the_cfg->listen_ip, 
+                        node->the_cfg->listen_port);
+    if(sfd == -1){
+        message(mlv_alert, "[FATAL] Unable to create socket\n");
+        return -1;
+    }
+
+    /* success */
+
+    node->fd_h.fd = sfd;
+    node->fd_h.want_read = 1;
+    sue_sel_register_fd(node->the_selector, &node->fd_h);
+
+    sue_timeout_set_from_now(&node->tmo_h, housekeeping_start_delay, 0);
+    sue_sel_register_timeout(node->the_selector, &node->tmo_h);
+
     return 0;
 }
 

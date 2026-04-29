@@ -1,4 +1,4 @@
-#include "../../lib/monocypher/monocypher.h"
+#include "../lib/monocypher/monocypher.h"
 #include "ms_comm_ctx.h"
 #include "ms_keyutils.h"
 #include <string.h>
