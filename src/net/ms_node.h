@@ -18,12 +18,13 @@ enum ms_node_state {
 };
 
 struct ms_node {
-    int sock;
-    struct ms_nodeid_file* id;
-
-    struct ms_peer_collection peers;
+    int fd;
     enum ms_node_state state;
 
+    unsigned char cookish[cookish_size];
+
+    struct ms_nodeid_file* id;
+    struct ms_peer_collection* peers;
     struct ms_node_cfg* the_cfg;
 };
 

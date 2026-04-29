@@ -25,21 +25,22 @@ void derive_keys(const unsigned char *local_secret,
                  unsigned char *decrypt_key);
 
 enum {
-    ms_min_dgram        = 64,
-    ms_max_dgram        = 508,
-    ms_min_payload      = 40,
+    ms_min_dgram         = 64,
+    ms_max_dgram         = 508,
+    ms_min_payload       = 40,
 
-    ms_zv_cmd_enc_min   = 0x00,
-    ms_zb_cmd_enc_max   = 0xE0,       
-    ms_zb_plain_min     = ms_zb_cmd_enc_max + 1,       
-    ms_zb_plain_max     = 0xFF,       
+    ms_zv_enc_min        = 0x00,
+    ms_zb_enc_max        = 0xE0,       
+    ms_zb_plain_min      = ms_zb_enc_max + 1,       
+    ms_zb_plain_max      = 0xFF,       
 
-    ms_cmd_echo_request = 0xEC,         /* Commands */
-    ms_cmd_echo_reply   = 0xED,
-    ms_cmd_associate    = 0xAC,
-    ms_cmd_intro_req    = 0x0A,
-    ms_cmd_intro_reply  = 0xA0,
-    ms_cmd_error        = 0xEE,
+    ms_cmd_echo_req      = 0xEC,         /* Commands */
+    ms_cmd_echo_reply    = 0xED,
+    ms_cmd_assoc_req     = 0xA5,
+    ms_cmd_assoc_fini    = 0xAA,
+    ms_cmd_intro_req     = 0xA1,
+    ms_cmd_intro_reply   = 0x1A,
+    ms_cmd_error         = 0xEE,
     
 
 

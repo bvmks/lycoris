@@ -5,6 +5,8 @@ enum {
     secret_key_size = 64,
     public_key_size = 32,
     
+    cookish_size = 32,
+    cookie_lifetime = 30, /* seconds */
 
     shared_secret_size = 32,
     kex_secret_size = 32,

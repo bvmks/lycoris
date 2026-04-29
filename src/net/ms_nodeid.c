@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "ms_nodeid.h"
+#include "../hexdata.h"
 #include "../message.h"
 #include "../../lib/monocypher/monocypher.h"
 
@@ -24,6 +25,7 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 {
     FILE* f;
     size_t r;
+    unsigned char pub_key_hash[32];
 
     nodeid_init(ni);
 
@@ -45,7 +47,8 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 
     crypto_eddsa_key_pair(ni->master_privat_key, ni->master_public_key, ni->secret);
 
-    memcpy(ni->node_id, ni->master_public_key + (public_key_size - node_id_size), node_id_size);
+    crypto_blake2b(pub_key_hash, sizeof(pub_key_hash), ni->master_public_key, public_key_size);
+    memcpy(ni->node_id, pub_key_hash, node_id_size);
     
     crypto_wipe(ni->secret, node_secret_size);
     return 0;

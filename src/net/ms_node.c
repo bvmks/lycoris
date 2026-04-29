@@ -5,19 +5,21 @@
 #include "../message.h"
 #include "../fileutil.h"
 #include "socks.h"
+#include "ms_keyutils.h"
 
 struct ms_node* make_node()
 {
     struct ms_node* node;
     node = malloc(sizeof(*node));
 
+    get_random(node->cookish, cookish_size);
+
     node->state = msns_init;
 
-    node->sock = -1;
+    node->fd = -1;
     node->the_cfg = NULL;
     node->id = NULL;
-    ms_sess_coll_init(&node->peers);
-
+    node->peers = NULL;
     return node;
 }
 
@@ -65,7 +67,7 @@ int kill_node(struct ms_node* n)
 
 int start_node(struct ms_node *n)
 {
-    int sock;
+    int fd;
     if(!n->the_cfg) {
         message_perror(mlv_normal, "ERROR", "node config not set");
         return mssn_no_config;
@@ -76,11 +78,11 @@ int start_node(struct ms_node *n)
         return mssn_no_id;
     }
     
-    sock = make_sock(SOCK_DGRAM, n->the_cfg->listen_ip, n->the_cfg->listen_port);
-    if(sock == -1) {
+    fd = make_sock(SOCK_DGRAM, n->the_cfg->listen_ip, n->the_cfg->listen_port);
+    if(fd == -1) {
         return -1;
     }
-    n->sock = sock;    
+    n->fd = fd;    
     n->state = msns_active;
     return 0;
 }

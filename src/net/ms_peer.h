@@ -1,5 +1,5 @@
-#ifndef _MS_SESSION_H
-#define _MS_SESSION_H
+#ifndef _ms_peerION_H
+#define _ms_peerION_H
 
 #include "ms_list.h"
 
@@ -8,7 +8,7 @@
 #include "ms_nonce.h"
 
 enum {
-    ms_session_timeout = 3,
+    ms_peerion_timeout = 3,
     ms_start_nonce = 0,
 
 
@@ -32,7 +32,7 @@ enum mss_authtype {
                 */
 };
 
-enum mss_state {
+enum ms_peer_state {
     ms_us_stub,
     ms_us_init,
     ms_us_handshake,
@@ -78,23 +78,12 @@ struct ms_peer_collection {
     size_t count;
 };
 
-void ms_sess_coll_init(struct ms_peer_collection *coll);
+struct ms_peer_collection* make_peer_collection();
 
-int  ms_sess_coll_add(struct ms_peer_collection *coll, struct ms_peer *s);
-void ms_sess_coll_remove(struct ms_peer_collection *coll, struct ms_peer *s);
+struct ms_peer* get_peer(struct ms_peer_collection* coll,
+                         unsigned int ip, unsigned short port, int add);
 
-struct ms_peer* ms_sess_coll_find(struct ms_peer_collection *coll, const struct addrport *addr);
+void dispose_peer_collection(struct ms_peer_collection *coll);
 
-void ms_sess_coll_cleanup(struct ms_peer_collection *coll);
-
-int mss_sess_get_num_of_el(struct ms_peer_collection* coll);
-
-
-struct ms_session {
-    struct _ms_list recvd, sent;
-    unsigned short id;
-};
-
-void session_init(struct ms_session* session, unsigned short id);
 
 #endif
