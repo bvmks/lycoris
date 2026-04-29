@@ -1,50 +1,115 @@
 *********************
 Here goes MS message types and overall protocol description
-ver 0.0.1 (08.04.2026)
+ver 0.0.1 (26.04.2026)
 
+usual protocol work start with this idea: 
+WE ALREADY somehow know eacho other master public key (a.k.a ID)
 
-minimal header struct:
-name    len(Byte)  desc
-type    1          general type  
-opt     1          subtype
+what do we do if we don't know it? it differs...
+this protocol have specific messages: intro_req, intro
+it unreliable, coz we litteraly don't know with who we connecting
+but it's useful for 1st time meeting
+especially for server-nodes regarding their new clients (i hope)
+and it's usage must be specified in node's config
 
-so minimal header payload is just this type structure.
-for different types of messages header may have additional fields
-so type must be checked and pointer may be cast to different header type
+*********************
+first byte
+00..E0 - encrypted msg, so, next goes nonce and MAC,
+and then goes actual command it's 1st encrypted byte
+E1..FF - plain unencrypted msg (even if actually it's semiencrypted)
+actual cmd in 2nd byte.
+but 2nd byte it's result of special operation between 1st byte and actual cmd
+/* this operations probably will be deleted*/
 
 *********************
 MSG types
 
-echo request
-echo_reply
-post
+bytes numeration starts with 0
 
+random padding means random-filled padding
+
+PLAIN
+
+echo_request
+2..5        4       reserved
+6..13       8       timestamp
+14..147             random padding
+
+echo_reply
+2..5        4       reserved
+6..13       8       timestamp
+14..21      8       cookie
+21..147             random padding
+
+assoc_request
+2..11       10      our_id
+12..43      32      kex
+44..51      8       nonce
+52..59      8       cookie
+60..67      8       timestamp               /* minutes UTC */
+68..131     64      our sign for ALL abowe
+132..147            random padding
+
+assoc_fini
+2..33       32      kex
+(other is cryptobox)
+34..41      8       nonce
+42..57      16      MAC
+(other is encrypted)
+58..67      10      our_id
+68..75      8       assoc_request's nonce
+76..83      8       timestamp               /* minutes since request */
+84..147     64      our sign for ALL abowe
+
+error
+2           1       error code
+3           1       cause
+4..11       8       reserved
+12..19      8       timestamp
+20..147             random padding
+
+
+ENCRYPTED
+
+keep alive
+0..7        8       nonce
+8..23       16      MAC
+25..127         	random padding
+
+post
+0..7        8       nonce
+8..23       16      MAC
+25..507             data
 
 *********************
-general connection process description:
+establishing association 
 
-** ALL BELOWE IS BULLSHIT, WILL BE CHANGED SOON**
+first of all 'client' and 'server'
+it's just words for 'node-initiator' and 'node-receiver'
+it doesn't mean than nodes must work in client-server mode or anything
 
-1. Handshake:
+it not stated below but at any stage we can get error mgs in return /* not implemented yet */
 
-client           server
-        e_req -->
-        <-- e_rep
-        if got e_rep
-        then server is ready to communicate
-        if no replly
-        or got err type in reply, then so
+client                  server
+        echo_request ->  
+        <- echo_reply /* if all guchi and server ready to communicate */
 
-        where
-        client it's so called initiator
-        server it's just destination node
+        /* now if we know public key of server and believes it knows our*/
+        assoc_request -> 
+        /* else if we agree for 'blind' connection */
+        intro_req ->
+        <- intro
+        assoc_request -> 
+        /*      */
 
-during handshake firstly client creates dedicated socket for it
-and inits connection struct
-then if server is ready it creates own dedicated socket 
-and inits connection struct
-if got error during this step, both sides must discard connection
-then initiator may try handshake again
-
-
+        /* now it depend's on server choise (config) */
+        /* if it knows our pub key */
+        <- assoc_fini
+        /* else if it donesn't know but agree for 'blind' connection */
+        <- intro_req
+        intro ->
+        <- assoc_fini
+        
+        /* and 1s encrypted msg always the same */
+        keep_alive ->
 
