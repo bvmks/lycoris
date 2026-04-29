@@ -31,6 +31,7 @@ int pqueue_push(struct ms_pqueue* queue, const struct ms_packet* src)
     else if (queue->size == pqueue_max_size) {
         pqueue_pop(queue, NULL);
         pqueue_push(queue, src);
+        return 0; /* maybe oshibka, chance 2% */
     }
     else {
         queue->tail->next = malloc(sizeof(struct ms_pqueue_node));
