@@ -98,11 +98,23 @@ static void handle_echo_reply(struct ms_node* node,
 
 }
 
-static void handle_assoc(struct ms_node* node,
+static void handle_assoc_req(struct ms_node* node,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
 
+}
+
+static void handle_assoc_fini(struct ms_node* node,
+                             unsigned int ip, unsigned short port,
+                             unsigned char* dgram, int len)
+{
+}
+
+static void handle_error(struct ms_node* node,
+                             unsigned int ip, unsigned short port,
+                             unsigned char* dgram, int len)
+{
 }
 
 static void handle_plain_dgram(struct ms_node* node,
@@ -113,20 +125,26 @@ static void handle_plain_dgram(struct ms_node* node,
     cmd = get_plain_dgram_cmd(dgram);
     message(mlv_debug, "plain dgram: cmd %02x\n", cmd);
     switch (cmd) {
-        case ms_cmd_echo_request: 
+        case ms_cmd_echo_req: 
             handle_echo_req(node, ip, port, dgram, len);
             break;
         case ms_cmd_echo_reply: 
             handle_echo_reply(node, ip, port, dgram, len);
             break;
-        case ms_cmd_assoc: 
-            handle_assoc(node, ip, port, dgram, len);
+        case ms_cmd_assoc_req: 
+            handle_assoc_req(node, ip, port, dgram, len);
+            break;
+        case ms_cmd_assoc_fini: 
+            handle_assoc_fini(node, ip, port, dgram, len);
             break;
         case ms_cmd_intro_req: 
             handle_intro_req(node, ip, port, dgram, len);
             break;
         case ms_cmd_intro_reply: 
             handle_intro(node, ip, port, dgram, len);
+            break;
+        case ms_cmd_error: 
+            handle_error(node, ip, port, dgram, len);
             break;
         default:
             handle_unknown_dgram(node, ip, port, dgram, len);
@@ -175,7 +193,7 @@ int do_recv(struct ms_node* node) {
 
 
     message(mlv_debug, "handle_recv called\n");
-    rc = recvfrom(node->fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
+    rc = recvfrom(node->selector->fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
     if(rc == -1) {
         message_perror(mlv_alert, "ALERT", "handle_recv");
         return rc;

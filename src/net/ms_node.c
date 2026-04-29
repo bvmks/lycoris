@@ -2,6 +2,8 @@
 #include <string.h>
 
 #include "ms_node.h"
+#include "../events.h"
+#include "../sighandle.h"
 #include "../message.h"
 #include "../fileutil.h"
 #include "socks.h"
@@ -16,7 +18,7 @@ struct ms_node* make_node()
 
     node->state = msns_init;
 
-    node->fd = -1;
+    node->selector = NULL;
     node->the_cfg = NULL;
     node->id = NULL;
     node->peers = NULL;
@@ -78,12 +80,8 @@ int start_node(struct ms_node *n)
         return mssn_no_id;
     }
     
-    fd = make_sock(SOCK_DGRAM, n->the_cfg->listen_ip, n->the_cfg->listen_port);
-    if(fd == -1) {
-        return -1;
-    }
-    n->fd = fd;    
     n->state = msns_active;
+    
     return 0;
 }
 

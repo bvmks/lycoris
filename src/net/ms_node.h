@@ -4,6 +4,7 @@
 #include "ms_nodeid.h"
 #include "ms_nodecfg.h"
 #include "ms_peer.h"
+#include "../events.h"
 
 /* start_node error codes */
 enum {
@@ -18,7 +19,6 @@ enum ms_node_state {
 };
 
 struct ms_node {
-    int fd;
     enum ms_node_state state;
 
     unsigned char cookish[cookish_size];

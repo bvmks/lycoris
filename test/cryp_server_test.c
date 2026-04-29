@@ -13,8 +13,8 @@
 #include "../src/fileutil.h"
 #include "../src/message.h"
 #include "../src/hexdata.h"
-#include "../src/events.h"
 #include "../src/net/ms_rx.h"
+#include "../src/events.h"
 
 enum {
     def_port = 24880,
@@ -36,46 +36,11 @@ static void calculate_timeout(struct ms_node* n, struct timespec* tm)
     tm->tv_nsec = select_timeout_usec;
 }
 
-static void prepare_sig_handlers(struct sig_handler_item** list) {
+static void prepare_sig_handlers(struct event_selector* s) {
     struct signal_handler h;
-    register_signal(list,&h);
+    sel_register_signal(s, &h);
 }
 
-static int main_loop(struct ms_node* node)
-{
-    int res = 0, result = 0, needbreak = 0;
-    struct sig_handler_item* sig_handlers = NULL;
-    prepare_sig_handlers(&sig_handlers);
-
-    fprintf(stderr, "[DEBUG] Enterring main loop\n");
-    while(!needbreak) {
-        fd_set rd_fds;
-        sigset_t ps_mask;
-        struct timespec rd_timeout;
-
-        FD_ZERO(&rd_fds);
-        FD_SET(node->fd, &rd_fds);
-
-        enter_signal_section(sig_handlers, &ps_mask);
-        handle_signal_events(sig_handlers);
-
-        calculate_timeout(node, &rd_timeout);
-        res = pselect(node->fd + 1, &rd_fds, NULL, NULL, &rd_timeout, &ps_mask);
-        if(res == -1 && errno != EINTR)
-            return -1;
-
-        if(res == -1 && errno == EINTR)
-            handle_signal_events(sig_handlers);
-        leave_signal_section(&ps_mask);
-
-        if(res > 0) {
-            do_recv(node);
-        }
-
-    }
-    fprintf(stderr, "[DEBUG] Quitting main loop\n");
-    return result;
-}
 
 static int ensure_wdir()
 {
@@ -96,14 +61,20 @@ static int ensure_wdir()
     return res;
 }
 
+void prepare_fd_handler(struct event_selector* s)
+{
+    struct fd_handler* h;
+    h = malloc(sizeof(*h));
+    
+}
+
 int main(int argc, char** argv)
 {
-    struct event_selector selector;
+    struct event_selector* selector;
     struct ms_node* node;
     struct ms_node_cfg* node_cfg;
     
     ensure_wdir();
-    
 
     node = make_node();
     /*
@@ -118,13 +89,19 @@ int main(int argc, char** argv)
         return 1;
     }
 
+    start_node(node);
     message(mlv_normal, "Started node: %s\n", hexdata2a(node->id->node_id, node_id_size));
 
-    sel_init(&selector);
+    selector = alloc_selector_init();
+    prepare_fd_handler(selector);
+    prepare_sig_handlers(selector);
 
-    start_node(node);
+
+    fprintf(stderr, "[DEBUG] Entering main loop\n");
+    sel_go(selector);
+    fprintf(stderr, "[DEBUG] Quitting main loop\n");
     
-    return main_loop(node);
+    return 0;
 }
 
 

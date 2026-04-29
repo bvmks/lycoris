@@ -69,16 +69,16 @@ struct signal_handler {
     void (*handle_signal)(struct signal_handler*, int signo);
 };
 
-struct sig_handler_item {
+struct sel_signal_item {
     struct signal_handler* h;
-    struct sig_handler_item* next;
+    struct sel_signal_item* next;
 };
 
-void handle_signal_events(const struct sig_handler_item *list)
+void handle_signal_events(const struct sel_signal_item *list)
 {
-    const struct sig_handler_item *p = list;
+    const struct sel_signal_item *p = list;
     while(p) {
-        const struct sig_handler_item *nx = p->next;
+        const struct sel_signal_item *nx = p->next;
         int cnt = signals_get_counter(p->h->signo);
         if(cnt > 0)
             p->h->handle_signal(p->h, cnt);
@@ -87,19 +87,3 @@ void handle_signal_events(const struct sig_handler_item *list)
     signals_zero_counters();
 }
 
-void enter_signal_section(const struct sig_handler_item *list,
-                                 sigset_t *saved_mask)
-{
-    sigset_t ps_mask;
-    sigemptyset(&ps_mask);
-    while(list) {
-        sigaddset(&ps_mask, list->h->signo);
-        list = list->next;
-    }
-    sigprocmask(SIG_BLOCK, &ps_mask, saved_mask);
-}
-
-void leave_signal_section(const sigset_t *saved_mask)
-{
-    sigprocmask(SIG_SETMASK, saved_mask, NULL);
-}
