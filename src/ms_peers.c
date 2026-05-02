@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "ms_peer.h"
+#include "ms_peers.h"
 
 struct ms_peer* make_peer()
 {
@@ -26,7 +26,7 @@ void dispose_peer(struct ms_peer* s)
 }
 
 
-struct ms_peer_collection* make_peer_collection(struct ms_node* node, struct ms_node_cfg* cfg)
+struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* node, struct ms_node_cfg* cfg)
 {
     struct ms_peer_collection* col;
     col = malloc(sizeof(*col));

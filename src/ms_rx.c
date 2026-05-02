@@ -8,13 +8,11 @@
 #include "ms_nodecfg.h"
 #include "ms_comm_ctx.h"
 #include "ms_txq.h"
-#include "ms_peer.h"
+#include "ms_peers.h"
 #include "socks.h"
 
 #include "addrport.h"
 #include "message.h"
-#include "fileutil.h"
-#include "keyutils.h"
 #include "ms_rx.h"
 
 #include "../lib/monocypher/monocypher.h"
@@ -30,7 +28,7 @@ enum {
 
 
 
-unsigned long long generate_cookie(struct ms_node* n, unsigned int ip, unsigned short port)
+unsigned long long generate_cookie(struct ms_udp_receiver* n, unsigned int ip, unsigned short port)
 {
     uint8_t input[14]; /* ip+port+timeslot */
     unsigned long long cookie;
@@ -47,7 +45,7 @@ unsigned long long generate_cookie(struct ms_node* n, unsigned int ip, unsigned 
 }
 
 
-int verify_cookie(struct ms_node* n, unsigned int ip, unsigned short port,
+int verify_cookie(struct ms_udp_receiver* n, unsigned int ip, unsigned short port,
                   unsigned long long cookie) 
 {
     unsigned long long expected = generate_cookie(n, ip, port);
@@ -83,14 +81,14 @@ int send_to(int fd, unsigned int ip, unsigned short port,
 }
 
 
-static void handle_unknown_dgram(struct ms_node* node,
+static void handle_unknown_dgram(struct ms_udp_receiver* rx,
                                  unsigned int ip, unsigned short port,
                                  unsigned char* dgram, int len)
 {
 
 }
 
-static void handle_intro_req(struct ms_node* node,
+static void handle_intro_req(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
@@ -98,14 +96,14 @@ static void handle_intro_req(struct ms_node* node,
 
 }
 
-static void handle_intro(struct ms_node* node,
+static void handle_intro(struct ms_udp_receiver* rx,
                          unsigned int ip, unsigned short port,
                          unsigned char* dgram, int len)
 {
 
 }
 
-static void handle_echo_req(struct ms_node* node,
+static void handle_echo_req(struct ms_udp_receiver* rx,
                             unsigned int ip, unsigned short port,
                             unsigned char* dgram, int len)
 {
@@ -113,33 +111,33 @@ static void handle_echo_req(struct ms_node* node,
 
 }
 
-static void handle_echo_reply(struct ms_node* node,
+static void handle_echo_reply(struct ms_udp_receiver* rx,
                               unsigned int ip, unsigned short port,
                               unsigned char* dgram, int len)
 {
 
 }
 
-static void handle_assoc_req(struct ms_node* node,
+static void handle_assoc_req(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
 
 }
 
-static void handle_assoc_fini(struct ms_node* node,
+static void handle_assoc_fini(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
 }
 
-static void handle_error(struct ms_node* node,
+static void handle_error(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
 }
 
-static void handle_plain_dgram(struct ms_node* node,
+static void handle_plain_dgram(struct ms_udp_receiver* rx,
                                unsigned int ip, unsigned short port,
                                unsigned char* dgram, int len)
 {
@@ -148,33 +146,33 @@ static void handle_plain_dgram(struct ms_node* node,
     message(mlv_debug, "plain dgram: cmd %02x\n", cmd);
     switch (cmd) {
         case ms_cmd_echo_req: 
-            handle_echo_req(node, ip, port, dgram, len);
+            handle_echo_req(rx, ip, port, dgram, len);
             break;
         case ms_cmd_echo_reply: 
-            handle_echo_reply(node, ip, port, dgram, len);
+            handle_echo_reply(rx, ip, port, dgram, len);
             break;
         case ms_cmd_assoc_req: 
-            handle_assoc_req(node, ip, port, dgram, len);
+            handle_assoc_req(rx, ip, port, dgram, len);
             break;
         case ms_cmd_assoc_fini: 
-            handle_assoc_fini(node, ip, port, dgram, len);
+            handle_assoc_fini(rx, ip, port, dgram, len);
             break;
         case ms_cmd_intro_req: 
-            handle_intro_req(node, ip, port, dgram, len);
+            handle_intro_req(rx, ip, port, dgram, len);
             break;
         case ms_cmd_intro_reply: 
-            handle_intro(node, ip, port, dgram, len);
+            handle_intro(rx, ip, port, dgram, len);
             break;
         case ms_cmd_error: 
-            handle_error(node, ip, port, dgram, len);
+            handle_error(rx, ip, port, dgram, len);
             break;
         default:
-            handle_unknown_dgram(node, ip, port, dgram, len);
+            handle_unknown_dgram(rx, ip, port, dgram, len);
             break;
     }
 }
 
-static void handle_encrypted_dgram(struct ms_node* node,
+static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
                                    unsigned int ip, unsigned short port,
                                    unsigned char* dgram, int len)
 {
@@ -182,7 +180,7 @@ static void handle_encrypted_dgram(struct ms_node* node,
 }
 
 
-static void handle_incoming_dgram(struct ms_node* node,
+static void handle_incoming_dgram(struct ms_udp_receiver* rx,
                                   unsigned int ip, unsigned short port,
                                   unsigned char* dgram, int len)
 {
@@ -195,10 +193,10 @@ static void handle_incoming_dgram(struct ms_node* node,
     }
 
     if(dgram[0] >= ms_zb_plain_min && dgram[0] <= ms_zb_plain_max) {
-        handle_plain_dgram(node, ip, port, dgram, len);
+        handle_plain_dgram(rx, ip, port, dgram, len);
     }
     else if(dgram[0] >= ms_zb_enc_max && dgram[0] <= ms_zb_enc_max) {
-        handle_encrypted_dgram(node, ip, port, dgram, len);
+        handle_encrypted_dgram(rx, ip, port, dgram, len);
     }
 
 }
@@ -217,10 +215,10 @@ static void the_fd_handler_read(struct sue_fd_handler* h)
     socklen_t addr_len = sizeof(addr);
     unsigned int ip;
     unsigned short port;
-    struct ms_node *node = h->userdata;
+    struct ms_udp_receiver *rx = h->userdata;
 
     message(mlv_debug, "handle_recv called\n");
-    rc = recvfrom(node->fd_h.fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
+    rc = recvfrom(rx->fd_h.fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
     if(rc == -1)
         message_perror(mlv_alert, "ALERT", "handle_recv");
     ip = htonl(addr.sin_addr.s_addr);
@@ -228,13 +226,13 @@ static void the_fd_handler_read(struct sue_fd_handler* h)
 
     message(mlv_debug, "received %d bytes from %s\n", rc, ipport2a(ip, port));
     
-    handle_incoming_dgram(node, ip, port, buf, rc);
+    handle_incoming_dgram(rx, ip, port, buf, rc);
 }
 
 
 static void the_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
-    struct ms_node *node = h->userdata;
+    struct ms_udp_receiver *rx = h->userdata;
 
     message(mlv_debug2, "the_fd_handler called (%s)(%s)",
                         r ? "r" : "-", w ? "w" : "-");
@@ -247,78 +245,71 @@ static void the_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         message(mlv_debug, "the_fd_handler want exeption? WTF?\n");
 
     h->want_read = 1;
-    h->want_write = txq_want_write(node->txq);
+    h->want_write = txq_want_write(rx->txq);
     h->want_except = 0;
 }
 
 static void the_timeout_hdl(struct sue_timeout_handler *hdl)
 {
-    struct ms_node *node = hdl->userdata;
+    struct ms_udp_receiver *rx = hdl->userdata;
     /* todo: */
 
     message(mlv_debug2, "the_timeout_hdl called\n");
 
-    // peers_timer_hook(node->peers);
+    // peers_timer_hook(rx->peers);
 
-    node->fd_h.want_read = 1;
-    node->fd_h.want_write = txq_want_write(node->txq);
-    node->fd_h.want_except = 0;
+    rx->fd_h.want_read = 1;
+    rx->fd_h.want_write = txq_want_write(rx->txq);
+    rx->fd_h.want_except = 0;
 
     sue_timeout_set_from_now(hdl, housekeeping_interval, 0);
-    sue_sel_register_timeout(node->the_selector, &node->tmo_h);
+    sue_sel_register_timeout(rx->the_selector, &rx->tmo_h);
 }
 
-struct ms_node* make_node(struct sue_event_selector* s, struct ms_node_cfg* cfg)
+struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct ms_node_cfg* cfg)
 {
-    struct ms_node* node;
-    node = malloc(sizeof(*node));
+    struct ms_udp_receiver* rx;
+    rx = malloc(sizeof(*rx));
 
-    node->fd_h.fd = -1;
-    node->fd_h.want_read = 1;
-    node->fd_h.want_write = 0;
-    node->fd_h.want_except = 0;
-    node->fd_h.userdata = node;
-    node->fd_h.handle_fd_event = &the_fd_handler;
+    rx->fd_h.fd = -1;
+    rx->fd_h.want_read = 1;
+    rx->fd_h.want_write = 0;
+    rx->fd_h.want_except = 0;
+    rx->fd_h.userdata = rx;
+    rx->fd_h.handle_fd_event = &the_fd_handler;
 
-    node->tmo_h.userdata = node;
-    node->tmo_h.handle_timeout = &the_timeout_hdl;
-    node->the_selector = s;
-    node->the_cfg = cfg;
+    rx->tmo_h.userdata = rx;
+    rx->tmo_h.handle_timeout = &the_timeout_hdl;
+    rx->the_selector = s;
+    rx->the_cfg = cfg;
 
-    node->id = load_node_id(cfg);
-    if(!node->id) {
+    rx->id = load_node_id(cfg);
+    if(!rx->id) {
         message(mlv_alert, "problems loading node id\n");
-        free(node);
+        free(rx);
         return NULL;
     }
 
-    node->peers = make_peer_collection(node, node->the_cfg);
-    node->txq = make_transmit_queue(s);
+    rx->peers = make_peer_collection(rx, rx->the_cfg);
+    rx->txq = make_transmit_queue(s);
 
-    return node;
+    return rx;
 }
 
 
 #if 0
-int load_node_cfg(struct ms_node* n, const char* fname)
+int load_node_cfg(struct ms_udp_receiver* n, const char* fname)
 {
     n->the_cfg = make_node_cfg();
     return read_node_cfg_file(n->the_cfg, fname);
 }
 #endif
 
-int kill_node(struct ms_node* n)
-{
-    
-    return 0;
-}
-
-
-int start_node(struct ms_node *node)
+int start_udp_receiver(struct ms_udp_receiver *rx)
 {
     int sfd = make_sock(SOCK_DGRAM, 
-                        node->the_cfg->listen_ip, 
-                        node->the_cfg->listen_port);
+                        rx->the_cfg->listen_ip, 
+                        rx->the_cfg->listen_port);
     if(sfd == -1){
         message(mlv_alert, "[FATAL] Unable to create socket\n");
         return 0;
@@ -326,12 +317,12 @@ int start_node(struct ms_node *node)
 
     /* success */
 
-    node->fd_h.fd = sfd;
-    node->fd_h.want_read = 1;
-    sue_sel_register_fd(node->the_selector, &node->fd_h);
+    rx->fd_h.fd = sfd;
+    rx->fd_h.want_read = 1;
+    sue_sel_register_fd(rx->the_selector, &rx->fd_h);
 
-    sue_timeout_set_from_now(&node->tmo_h, housekeeping_start_delay, 0);
-    sue_sel_register_timeout(node->the_selector, &node->tmo_h);
+    sue_timeout_set_from_now(&rx->tmo_h, housekeeping_start_delay, 0);
+    sue_sel_register_timeout(rx->the_selector, &rx->tmo_h);
 
     return 1;
 }

@@ -1,11 +1,8 @@
 #ifndef _ms_peerION_H
 #define _ms_peerION_H
 
-#include "ms_list.h"
 
-#include "addrport.h"
 #include "ms_comm_ctx.h"
-#include "ms_nonce.h"
 
 #include "ms_nodecfg.h"
 #include "ms_rx.h"
@@ -81,7 +78,7 @@ struct ms_peer_collection {
     size_t count;
 };
 
-struct ms_peer_collection* make_peer_collection(struct ms_node* node, struct ms_node_cfg* cfg);
+struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* node, struct ms_node_cfg* cfg);
 
 struct ms_peer* get_peer(struct ms_peer_collection* coll,
                          unsigned int ip, unsigned short port, int add);

@@ -1,5 +1,3 @@
-#include <errno.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <netinet/in.h>
@@ -8,36 +6,20 @@
 #include <time.h>
 #include <sys/select.h>
 
+#include <sue/sue_base.h>
+#include <sue/sue_aloc.h>
 
-#include "../src/fileutil.h"
-#include "../src/message.h"
-#include "../src/hexdata.h"
-#include "../src/ms_rx.h"
-#include "../src/ms_nodeid.h"
+
+#include "fileutil.h"
+#include "message.h"
+#include "ms_rx.h"
+
+#include "ms_sig.h"
+#include "ms_lh.h"
 
 enum {
     def_port = 24880,
-    select_timeout_usec = 1000000,
 };
-
-struct signal_target {
-};
-
-static void calculate_timeout(struct ms_node* n, struct timespec* tm) 
-{
-    /* 
-     * for now it's stupid const value
-     * must be calculated depending on peers timeouts
-     * will make later (at least believe so)
-     */
-    tm->tv_sec = 0;
-    tm->tv_nsec = select_timeout_usec;
-}
-
-static void prepare_sig_handlers(struct sue_event_selector* s) {
-    struct sue_signal_handler h;
-}
-
 
 static int ensure_wdir()
 {
@@ -58,22 +40,30 @@ static int ensure_wdir()
     return res;
 }
 
+void free_targets(struct ms_signal_target* st, struct ms_loophook_target* lt) {
+    if(st)
+        free(st);
+    if(lt)
+        free(lt);
+}
+
 int main(int argc, char** argv)
 {
     struct sue_event_selector selector;
-    struct ms_node* node;
+    struct ms_udp_receiver* receiver;
     struct ms_node_cfg* node_cfg;
+    struct ms_signal_target* sigtarget;
+    struct ms_loophook_target* lhtarget;
     int res;
     
     ensure_wdir();
     message_set_verbosity(mlv_debug2);
 
-
     sue_alloc_init_default();
 
     sue_sel_init(&selector);
-    message(mlv_debug, "[DEBUG] selector initialized...\n");
-    prepare_sig_handlers(&selector);
+    message(mlv_debug, "[DEBUG] event selector initialized...\n");
+
 
     /*
      * config "hadcoded" just for now...
@@ -82,25 +72,35 @@ int main(int argc, char** argv)
     node_cfg = make_node_def_cfg();
     message(mlv_debug, "[DEBUG] config initialized...\n");
 
-    node = make_node(&selector, node_cfg);
-    if(!node) {
+    receiver = make_udp_receiver(&selector, node_cfg);
+    if(!receiver) {
         message(mlv_alert, "[FATAL] Failed to make node, quitting...\n");
         return -1;
     }
     message(mlv_debug, "[DEBUG] node made...\n");
 
-    if(!start_node(node))
+    sigtarget = prepare_sig_handlers(&selector, receiver);
+    message(mlv_debug, "[DEBUG] signal handlers initialized...\n");
+
+    lhtarget = prepare_loophooks(&selector, receiver);
+    message(mlv_debug, "[DEBUG] loophooks initialized...\n");
+
+    if(!start_udp_receiver(receiver))
     {
         message(mlv_alert, "[FATAL] Failed to start node, quitting...\n");
         return -1;
     }
-    message(mlv_normal, "Started node: %s\n", hexdata2a(node->id->node_id, node_id_size));
+    message(mlv_normal, "Started node\n");
 
 
-
-    message(mlv_debug, "[DEBUG] Entering main loop...\n");
+    message(mlv_debug, "[DEBUG] Entering main loop\n");
     res = sue_sel_go(&selector);
-    message(mlv_debug, "[DEBUG] Quitting main loop...\n");
+    if(res == -1) {
+        message(mlv_alert, "Main loop returned error\n");
+    }
+    message(mlv_debug, "[DEBUG] Quitting main loop\n");
+
+    free_targets(sigtarget, lhtarget);
     
     return 0;
 }

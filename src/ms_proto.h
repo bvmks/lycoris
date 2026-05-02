@@ -1,8 +1,6 @@
 #ifndef _MS_PROTOCOL_H
 #define _MS_PROTOCOL_H
 
-int ms_init_session_with(struct ms_node* node, unsigned int ip, unsigned short port);
-
 
 
 #if 0

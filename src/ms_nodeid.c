@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include "ms_nodeid.h"
-#include "hexdata.h"
+#include "ms_nodecfg.h"
 #include "message.h"
 #include "fileutil.h"
 #include "../lib/monocypher/monocypher.h"

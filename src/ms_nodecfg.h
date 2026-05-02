@@ -33,6 +33,8 @@ struct ms_node_cfg* make_node_def_cfg();
 
 int read_node_cfg_file(struct ms_node_cfg* cfg, const char* fname);
 
+struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg);
+
 void dispose_node_cfg(struct ms_node_cfg* cfg);
 
 void settle_keydir(struct ms_node_cfg* cfg);
