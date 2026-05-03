@@ -28,7 +28,7 @@ enum {
 
 
 
-unsigned long long generate_cookie(struct ms_udp_receiver* n, unsigned int ip, unsigned short port)
+unsigned long long generate_cookie(struct ms_udp_receiver* rx, unsigned int ip, unsigned short port)
 {
     uint8_t input[14]; /* ip+port+timeslot */
     unsigned long long cookie;
@@ -39,16 +39,16 @@ unsigned long long generate_cookie(struct ms_udp_receiver* n, unsigned int ip, u
     memcpy(input + sizeof(ip) + sizeof(port), &timeslot, sizeof(timeslot));
 
     crypto_blake2b_keyed((uint8_t*)&cookie, sizeof(cookie),
-                         n->id->cookish, cookish_size,
+                         rx->id->cookish, cookish_size,
                          input, sizeof(input));
     return cookie;
 }
 
 
-int verify_cookie(struct ms_udp_receiver* n, unsigned int ip, unsigned short port,
+int verify_cookie(struct ms_udp_receiver* rx, unsigned int ip, unsigned short port,
                   unsigned long long cookie) 
 {
-    unsigned long long expected = generate_cookie(n, ip, port);
+    unsigned long long expected = generate_cookie(rx, ip, port);
     return (expected == cookie) ? 0 : -1;
 }
 
@@ -65,7 +65,7 @@ int send_to(int fd, unsigned int ip, unsigned short port,
 
     r = sendto(fd, buf, len, 0, (struct sockaddr*)&saddr, sizeof(saddr));
     if(r < 1) {
-        message_perror(mlv_alert, "ALERT", "sendto");
+        message_perror(mlv_alert, "dend_to", "failed to send dgram");
         message(mlv_alert, "error sending %d bytes to %s",
                                     len, ipport2a(ip, port));
         return -1;
@@ -298,10 +298,10 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
 
 
 #if 0
-int load_node_cfg(struct ms_udp_receiver* n, const char* fname)
+int load_node_cfg(struct ms_udp_receiver* rx, const char* fname)
 {
-    n->the_cfg = make_node_cfg();
-    return read_node_cfg_file(n->the_cfg, fname);
+    rx->the_cfg = make_node_cfg();
+    return read_node_cfg_file(rx->the_cfg, fname);
 }
 #endif
 
