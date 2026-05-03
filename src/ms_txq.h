@@ -6,9 +6,11 @@ struct ms_transmit_queue;
 struct sue_event_selector;
 
 struct ms_transmit_item {
-    struct feda_transmit_queue* master;
+    struct ms_transmit_queue* master;
     unsigned char* buf;
     int len, offset;
+    unsigned int ip;
+    unsigned short port;
     struct ms_peer* the_peer;
     struct ms_transmit_item* next;
 };
@@ -19,8 +21,17 @@ struct ms_transmit_queue {
 
 struct ms_transmit_queue* make_transmit_queue(struct sue_event_selector* s);
 
-void ms_txq_enqueue (struct ms_transmit_item* item);
+void ms_txq_enqueue(struct ms_transmit_item* item);
 
 int txq_want_write(const struct ms_transmit_queue *txq);
+
+void ms_txq_enqueue(struct ms_transmit_item* item);
+
+struct ms_transmit_item *make_txitem_4peer(struct ms_transmit_queue *txq,
+                                    int len, int offset, struct ms_peer *peer);
+
+ 
+struct ms_transmit_item *make_txitem_4ip(struct ms_transmit_queue* txq,
+                         int len, int offset, unsigned int ip, unsigned short port);
 
 #endif

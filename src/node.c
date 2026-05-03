@@ -62,43 +62,39 @@ int main(int argc, char** argv)
     sue_alloc_init_default();
 
     sue_sel_init(&selector);
-    message(mlv_debug, "[DEBUG] event selector initialized...\n");
-
 
     /*
      * config "hadcoded" just for now...
      * i will make (steal) text parser for cfg loading later (maybe)
     */
     node_cfg = make_node_def_cfg();
-    message(mlv_debug, "[DEBUG] config initialized...\n");
 
     receiver = make_udp_receiver(&selector, node_cfg);
     if(!receiver) {
-        message(mlv_alert, "[FATAL] failed to initialize udp_receiver, quitting...\n");
+        message(mlv_alert, "[FATAL] failed to construct udp_receiver\n");
         return -1;
     }
-    message(mlv_debug, "[DEBUG] udp_receiver initialized...\n");
+    message(mlv_debug, "[DEBUG] udp_receiver initialized\n");
 
     sigtarget = prepare_sig_handlers(&selector, receiver);
-    message(mlv_debug, "[DEBUG] signal handlers initialized...\n");
+    message(mlv_debug, "[DEBUG] signal handlers initialized\n");
 
     lhtarget = prepare_loophooks(&selector, receiver);
-    message(mlv_debug, "[DEBUG] loophooks initialized...\n");
+    message(mlv_debug, "[DEBUG] loophooks initialized\n");
 
     if(!start_udp_receiver(receiver))
     {
-        message(mlv_alert, "[FATAL] failed to start udp_receiver, quitting...\n");
+        message(mlv_alert, "[FATAL] failed to start udp_receiver\n");
         return -1;
     }
-    message(mlv_debug, "[DBUG] udp_receiver started...\n");
+    message(mlv_debug, "[DEBUG] udp_receiver started\n");
 
 
     message(mlv_debug, "[DEBUG] entering main loop...\n");
     res = sue_sel_go(&selector);
-    if(res == -1) {
-        message(mlv_info, "[INFO] main loop returned error\n");
-    }
-    message(mlv_debug, "[DEBUG] exitting main loop...\n");
+    if(res == -1)
+        message(mlv_normal, "main loop reported error\n");
+    message(mlv_debug, "[DEBUG] exited main loop\n");
 
     free_targets(sigtarget, lhtarget);
     

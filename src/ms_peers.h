@@ -66,6 +66,7 @@ void dispose_peer(struct ms_peer* s);
 
 void ms_peer_init(struct ms_peer* s);
 
+void ms_peer_getaddr(const struct ms_peer* p, unsigned int* ip, unsigned short* port);
 
 
 struct ms_peer_el {

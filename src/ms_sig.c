@@ -20,7 +20,7 @@ struct ms_signal_target {
 static void quit_on_sig(struct sue_signal_handler *h, int cnt)
 {
     struct ms_signal_target *t = h->userdata;
-    message(mlv_debug2, "quit_on_sig called\n");
+    message(mlv_debug2, "[DEBUG] quit_on_sig called\n");
     sue_sel_break(t->the_selector); 
 }
 

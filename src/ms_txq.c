@@ -1,4 +1,7 @@
+#include <stdlib.h>
+
 #include "ms_txq.h"
+#include "ms_peers.h"
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -17,5 +20,45 @@ void ms_txq_enqueue (struct ms_transmit_item* item)
 int txq_want_write(const struct ms_transmit_queue *txq)
 {
     return 0;
+}
+
+static struct ms_transmit_item *make_txitem(struct ms_transmit_queue* txq,
+                                            int len, int offset)
+{
+    struct ms_transmit_item* res;
+
+    res = malloc(sizeof(*res));
+    res->master = txq;
+    res->buf = malloc(len);
+    res->len = len;
+    res->offset = offset;
+    res->ip = -1;
+    res->port = -1;
+    res->the_peer = NULL;
+    res->next = NULL;
+
+    return res;
+}
+
+
+struct ms_transmit_item* make_txitem_4peer(struct ms_transmit_queue* txq,
+                                    int len, int offset, struct ms_peer* peer)
+{
+    struct ms_transmit_item* res;
+    res = make_txitem(txq, len, offset);
+    ms_peer_getaddr(peer, &res->ip, &res->port);
+    res->the_peer = peer;
+    return res;
+}
+
+struct ms_transmit_item *make_txitem_4ip(struct ms_transmit_queue* txq,
+                         int len, int offset, unsigned int ip, unsigned short port)
+{
+    struct ms_transmit_item* res;
+    res = make_txitem(txq, len, offset);
+    res->ip = ip;
+    res->port = port;
+    res->the_peer = NULL;
+    return res;
 }
 

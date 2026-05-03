@@ -17,7 +17,7 @@ static void main_hook(struct sue_loop_hook *h)
 {
     struct ms_udp_receiver *r = h->userdata;
     r->fd_h = r->fd_h; /* to ease compiler warning */
-    message(mlv_debug2, "main_hook called\n");
+    message(mlv_debug2, "[DEBUG] main_hook called\n");
 }
 
 struct ms_loophook_target* prepare_loophooks(struct sue_event_selector* s,

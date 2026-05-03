@@ -19,7 +19,7 @@ TARGETS = node
 NODE_OBJS = node.o fileutils.o message.o ms_rx.o \
 			ms_nodecfg.o ms_sig.o ms_lh.o ms_nodeid.o\
 			addrport.o ms_comm_ctx.o socks.o ms_keyutils.o\
-			ms_txq.o ms_nonce.o ms_peers.o \
+			ms_txq.o ms_nonce.o ms_peers.o hexdata.o \
 			../lib/monocypher/libmonocypher.a \
 			../lib/sue/libsue.a
 

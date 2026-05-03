@@ -25,6 +25,14 @@ void dispose_peer(struct ms_peer* s)
     free(s);
 }
 
+void ms_peer_getaddr(const struct ms_peer* p, unsigned int* ip, unsigned short* port)
+{
+    if(ip) 
+        *ip = p->ip;
+    if(port) 
+        *port = p->port;
+}
+
 
 struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* node, struct ms_node_cfg* cfg)
 {
