@@ -74,10 +74,10 @@ int main(int argc, char** argv)
 
     receiver = make_udp_receiver(&selector, node_cfg);
     if(!receiver) {
-        message(mlv_alert, "[FATAL] Failed to make node, quitting...\n");
+        message(mlv_alert, "[FATAL] failed to initialize udp_receiver, quitting...\n");
         return -1;
     }
-    message(mlv_debug, "[DEBUG] node made...\n");
+    message(mlv_debug, "[DEBUG] udp_receiver initialized...\n");
 
     sigtarget = prepare_sig_handlers(&selector, receiver);
     message(mlv_debug, "[DEBUG] signal handlers initialized...\n");
@@ -87,18 +87,18 @@ int main(int argc, char** argv)
 
     if(!start_udp_receiver(receiver))
     {
-        message(mlv_alert, "[FATAL] Failed to start node, quitting...\n");
+        message(mlv_alert, "[FATAL] failed to start udp_receiver, quitting...\n");
         return -1;
     }
-    message(mlv_normal, "Started node\n");
+    message(mlv_debug, "[DBUG] udp_receiver started...\n");
 
 
-    message(mlv_debug, "[DEBUG] Entering main loop\n");
+    message(mlv_debug, "[DEBUG] entering main loop...\n");
     res = sue_sel_go(&selector);
     if(res == -1) {
-        message(mlv_alert, "Main loop returned error\n");
+        message(mlv_info, "[INFO] main loop returned error\n");
     }
-    message(mlv_debug, "[DEBUG] Quitting main loop\n");
+    message(mlv_debug, "[DEBUG] exitting main loop...\n");
 
     free_targets(sigtarget, lhtarget);
     
