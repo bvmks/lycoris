@@ -32,7 +32,7 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 
     f = fopen(fname, "rb");
     if(!f) {
-        message_perror(mlv_alert, "FATAL", "unable to open id file");
+        message_perror(mlv_alert, "load_nodeid_file", "unable to open id file");
         return 1;
     }
 
@@ -41,7 +41,7 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 
     if (r != node_secret_size) {
         crypto_wipe(ni->secret, sizeof(ni->secret));
-        message_perror(mlv_alert, "FATAL", "seed file is too short or corrupted");
+        message_perror(mlv_alert, "load_nodeid_file", "seed file is too short or corrupted");
         nodeid_init(ni);
         return 1;
     }
@@ -67,7 +67,6 @@ struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg)
     free(keyfile);
     if(lfail) {
         dispose_nodeid(id);
-        free(id);
         return NULL;
     }
     return id;
