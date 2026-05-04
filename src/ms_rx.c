@@ -12,6 +12,7 @@
 #include "ms_peers.h"
 #include "ms_keyutils.h"
 #include "ms_comm_ctx.h"
+#include "ms_kndb.h"
 #include "socks.h"
 
 #include "addrport.h"
@@ -29,14 +30,15 @@ enum {
     housekeeping_start_delay = 1,
     housekeeping_interval    = 10,
 
-    padded_msg_len           = 148,
+    padded_msg_size          = 148,
 
-    timestamp_len            = 8,
+    timestamp_size           = 8,
 
     echo_req_reserved        = 4,
     echo_reply_reserved      = 4,
 
-    echo_reply_payload_len   = 20,
+    echo_reply_payload_size  = 20,
+    assoc_req_payload_size   = 20,
 };
 
 
@@ -125,18 +127,24 @@ static void send_plaintext_148(struct ms_udp_receiver *rx,
     enqueue_datagram(rx, msg);
 }
 
-static unsigned long long get_timestamp()
+static unsigned long long get_timestamp_ms()
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return (unsigned long)tv.tv_sec * 1000 + tv.tv_usec / 1000;
+    return (unsigned long long)tv.tv_sec * 1000ULL + (tv.tv_usec / 1000);
+}
+
+static unsigned long long get_timestamp_sec() {
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (unsigned long long)tv.tv_sec;
 }
 
 #if 0
 static void place_timestamp(unsigned char ts[8])
 {
     unsigned long long timestamp;
-    timestamp = get_timestamp();
+    timestamp = get_timestamp_sec();
     u64_to_big_endian(ts, timestamp);
 }
 #endif
@@ -144,30 +152,67 @@ static void place_timestamp(unsigned char ts[8])
 
 static void send_echo_reply(struct ms_udp_receiver* rx, unsigned int ip, unsigned short port) 
 {
-    unsigned char buf[echo_reply_payload_len];
+    unsigned char buf[echo_reply_payload_size];
     unsigned char* bufp;
     unsigned long long cookie;
     unsigned long long timestamp;
 
 
     cookie = generate_cookie(rx, ip, port);
-    timestamp = get_timestamp();
+    timestamp = get_timestamp_sec();
 
     message(mlv_debug, "[DEBUG] sending echo reply to %s, "
                        "timestamp: %llu\n"
-                       " cookie: %llu", 
+                       " cookie: %llu\n", 
                        timestamp,
                        cookie);
 
     bufp = buf;
     bufp += echo_reply_reserved;
     u64_to_big_endian(bufp, timestamp);
-    bufp += timestamp_len;
+    bufp += timestamp_size;
     u64_to_big_endian(bufp, cookie);
     send_plaintext_148(rx, 
                        ip, port,
                        ms_cmd_echo_reply, 
-                       buf, echo_reply_payload_len);
+                       buf, echo_reply_payload_size);
+}
+
+static void send_assoc_req(struct ms_udp_receiver* rx, struct ms_peer* p)
+{
+    unsigned char buf[assoc_req_payload_size];
+    unsigned char* bufp = buf;
+    unsigned int ip;
+    unsigned short port;
+    ms_peer_getaddr(p, &ip, &port);
+/*
+    assoc_request
+    2..11       10      our_id
+    12..43      32      kex
+    44..51      8       nonce
+    52..59      8       cookie
+    60..67      8       timestamp               
+    68..131     64      our sign for ALL above
+    132..147            random padding
+*/
+    memcpy(bufp, ms_peer_get_id(p), node_id_size);
+    bufp += node_id_size;
+    memcpy(bufp, ms_peer_get_kex(p), kex_public_size);
+    bufp += kex_public_size;
+    ms_peer_fill_nounce(p, bufp);
+    bufp += nonce_used;
+    u64_to_big_endian(bufp, ms_peer_get_cookie(p));
+    bufp += nonce_used;
+    u64_to_big_endian(bufp, get_timestamp_sec());
+    bufp += 8; /* sizeof(unsigned long long) */
+    crypto_eddsa_sign(bufp, 
+                      rx->id->master_privat_key,
+                      buf,
+                      assoc_req_payload_size - sign_size);
+    send_plaintext_148(rx, 
+                       ip, port,
+                       ms_cmd_assoc_req, 
+                       buf, assoc_req_payload_size);
 }
 
 
@@ -198,10 +243,8 @@ static void handle_echo_req(struct ms_udp_receiver* rx,
                             unsigned int ip, unsigned short port,
                             unsigned char* data, int len)
 {
-    unsigned long long received_timestamp;
-    received_timestamp = u64_from_big_endian(data);
-    message(mlv_debug, "[DEBUG] received echo request from %s, timestamp: %llu\n", ipport2a(ip, port), received_timestamp);
-    /* for now timestamp not used */
+    message(mlv_debug, "[DEBUG] echo request from %s, will reply\n",
+                       ipport2a(ip, port));
     send_echo_reply(rx, ip, port);
 }
 
@@ -209,7 +252,39 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
                               unsigned int ip, unsigned short port,
                               unsigned char* dgram, int len)
 {
+    struct ms_peer* p;
+    unsigned long long received_cookie;
+    int assoc_status;
 
+    p = get_peer_record(rx->peers, ip, port, 0);
+    if(!p) {
+        message(mlv_debug, "[DEBUG] stray echo reply from %s, dropping\n",
+                ipport2a(ip, port));
+        /*need to send error in return (will add later)*/
+        return;
+    }
+    /* we probably must cooldown peer than sent unrequested message*/
+    /* and send error in return */
+    /* but this will be added later (i hope)*/
+    
+    assoc_status = ms_peer_assoc_status(p);
+    switch (assoc_status) {
+        case msas_echo_req_sent: break;
+        case msas_established:
+            message(mlv_debug,
+                    "[DEBUG] ignoring unrequested echo reply from %s (assoc. established)",
+                    ms_peer_description(p));
+            return;
+        default: 
+            message(mlv_debug, "[DEBUG] didn't expect echo reply, dropping\n");
+            return;
+    }
+
+    received_cookie = u64_from_big_endian(dgram+ echo_reply_reserved);
+    ms_peer_set_cookie(p, received_cookie);
+
+    ms_peer_set_assoc_status(p, msas_assoc_req_sent);
+    send_assoc_req(rx, p);
 }
 
 static void handle_assoc_req(struct ms_udp_receiver* rx,
@@ -296,9 +371,27 @@ static void handle_incoming_dgram(struct ms_udp_receiver* rx,
 }
 
 
-static void the_fd_handler_write(struct sue_fd_handler* h) 
+static void the_fd_handler_write(struct sue_fd_handler *h)
 {
+    struct ms_udp_receiver *feda_rx = h->userdata;
+    struct ms_transmit_item *item;
 
+    message(mlv_debug2, "[DEBUG] the_fd_handler_write called\n");
+
+    item = get_item_to_transmit(feda_rx->txq);
+    if(!item)
+        return;
+
+    message(mlv_debug2, 
+            "[DEBUG] sending %i bytes to %s/n",
+            item->len - item->offset,
+            ipport2a(item->ip, item->port));
+
+    send_to(feda_rx->fdh.fd, item->ip, item->port,
+            item->buf + item->offset,
+            item->len - item->offset);
+    /* we maybe need to check for send error (maybe will add later)*/
+    ms_txq_item_sent(item);
 }
 
 static void the_fd_handler_read(struct sue_fd_handler* h)
@@ -312,7 +405,7 @@ static void the_fd_handler_read(struct sue_fd_handler* h)
     struct ms_udp_receiver *rx = h->userdata;
 
     message(mlv_debug, "[DEBUG] the_fd_handler_read called\n");
-    rc = recvfrom(rx->fd_h.fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
+    rc = recvfrom(rx->fdh.fd, buf, sizeof(buf), 0, (struct sockaddr*)&addr, &addr_len);
     if(rc == -1)
         message_perror(mlv_alert, "the_fd_handler_read", "recvfrom");
     ip = htonl(addr.sin_addr.s_addr);
@@ -328,7 +421,7 @@ static void the_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
     struct ms_udp_receiver *rx = h->userdata;
 
-    message(mlv_debug, "[DEBUG] the_fd_handler called (%s)(%s)",
+    message(mlv_debug, "[DEBUG] the_fd_handler called (%s)(%s)\n",
                        r ? "r" : "-", w ? "w" : "-");
 
     if(r)
@@ -352,12 +445,12 @@ static void the_timeout_hdl(struct sue_timeout_handler *hdl)
 
     // peers_timer_hook(rx->peers);
 
-    rx->fd_h.want_read = 1;
-    rx->fd_h.want_write = txq_want_write(rx->txq);
-    rx->fd_h.want_except = 0;
+    rx->fdh.want_read = 1;
+    rx->fdh.want_write = txq_want_write(rx->txq);
+    rx->fdh.want_except = 0;
 
     sue_timeout_set_from_now(hdl, housekeeping_interval, 0);
-    sue_sel_register_timeout(rx->the_selector, &rx->tmo_h);
+    sue_sel_register_timeout(rx->the_selector, &rx->tmoh);
 }
 
 struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct ms_node_cfg* cfg)
@@ -365,15 +458,15 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
     struct ms_udp_receiver* rx;
     rx = malloc(sizeof(*rx));
 
-    rx->fd_h.fd = -1;
-    rx->fd_h.want_read = 1;
-    rx->fd_h.want_write = 0;
-    rx->fd_h.want_except = 0;
-    rx->fd_h.userdata = rx;
-    rx->fd_h.handle_fd_event = &the_fd_handler;
+    rx->fdh.fd = -1;
+    rx->fdh.want_read = 1;
+    rx->fdh.want_write = 0;
+    rx->fdh.want_except = 0;
+    rx->fdh.userdata = rx;
+    rx->fdh.handle_fd_event = &the_fd_handler;
 
-    rx->tmo_h.userdata = rx;
-    rx->tmo_h.handle_timeout = &the_timeout_hdl;
+    rx->tmoh.userdata = rx;
+    rx->tmoh.handle_timeout = &the_timeout_hdl;
     rx->the_selector = s;
     rx->the_cfg = cfg;
 
@@ -384,6 +477,7 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
         return NULL;
     }
 
+    rx->kndb = load_kndb(cfg->kndb_file);
     rx->peers = make_peer_collection(rx, rx->the_cfg);
     rx->txq = make_transmit_queue(s);
 
@@ -411,12 +505,12 @@ int start_udp_receiver(struct ms_udp_receiver *rx)
 
     /* success */
 
-    rx->fd_h.fd = sfd;
-    rx->fd_h.want_read = 1;
-    sue_sel_register_fd(rx->the_selector, &rx->fd_h);
+    rx->fdh.fd = sfd;
+    rx->fdh.want_read = 1;
+    sue_sel_register_fd(rx->the_selector, &rx->fdh);
 
-    sue_timeout_set_from_now(&rx->tmo_h, housekeeping_start_delay, 0);
-    sue_sel_register_timeout(rx->the_selector, &rx->tmo_h);
+    sue_timeout_set_from_now(&rx->tmoh, housekeeping_start_delay, 0);
+    sue_sel_register_timeout(rx->the_selector, &rx->tmoh);
 
     return 1;
 }
