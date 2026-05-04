@@ -46,8 +46,8 @@ assoc_request
 12..43      32      kex
 44..51      8       nonce
 52..59      8       cookie
-60..67      8       timestamp               /* minutes UTC */
-68..131     64      our sign for ALL abowe
+60..67      8       timestamp               /* seconds */
+68..131     64      our sign for ALL above
 132..147            random padding
 
 assoc_fini
@@ -58,8 +58,8 @@ assoc_fini
 (other is encrypted)
 58..67      10      our_id
 68..75      8       assoc_request's nonce
-76..83      8       timestamp               /* minutes since request */
-84..147     64      our sign for ALL abowe
+76..83      8       timestamp               /* seconds since request */
+84..147     64      our sign for ALL above
 
 error
 2           1       error code
