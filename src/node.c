@@ -13,6 +13,7 @@
 #include "fileutil.h"
 #include "message.h"
 #include "ms_rx.h"
+#include "ms_nodecfg.h"
 
 #include "ms_sig.h"
 #include "ms_lh.h"

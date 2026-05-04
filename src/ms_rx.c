@@ -38,9 +38,46 @@ enum {
     echo_reply_reserved      = 4,
 
     echo_reply_payload_size  = 20,
-    assoc_req_payload_size   = 20,
+    assoc_req_payload_size   = 130,
 };
 
+
+
+void obfuscate(unsigned char *buf, int size)
+{
+    int i;
+    *buf ^= 0x5a;
+    for(i = 1; i < size; i++) {
+        unsigned char pb, mask, cb, sft;
+
+        pb = buf[i-1];
+        mask = (pb & 0xf8) | ((pb >> 5) & 0x07);
+        mask ^= (i & 0x0f) | ((i<<4) & 0xf0);
+        sft = (pb & 0x07) ^ (i & 0x07);
+        cb = buf[i] ^ mask;
+        if(sft)
+            cb = (cb >> sft) | ((cb << (8-sft)) & (0xff << (8-sft)));
+        buf[i] = cb;
+    }
+}
+
+void deobfuscate(unsigned char *buf, int size)
+{
+    int i;
+    for(i = size-1; i >= 1; i--) {
+        unsigned char pb, mask, cb, sft;
+
+        pb = buf[i-1];
+        mask = (pb & 0xf8) | ((pb >> 5) & 0x07);
+        mask ^= (i & 0x0f) | ((i<<4) & 0xf0);
+        sft = 8 - ((pb & 0x07) ^ (i & 0x07));
+        cb = buf[i];
+        if(sft)
+            cb = (cb >> sft) | ((cb << (8-sft)) & (0xff << (8-sft)));
+        buf[i] = cb ^ mask;
+    }
+    *buf ^= 0x5a;
+}
 
 
 static unsigned long long generate_cookie(struct ms_udp_receiver* rx, unsigned int ip, unsigned short port)
@@ -200,9 +237,10 @@ static void send_assoc_req(struct ms_udp_receiver* rx, struct ms_peer* p)
     memcpy(bufp, ms_peer_get_kex(p), kex_public_size);
     bufp += kex_public_size;
     ms_peer_fill_nounce(p, bufp);
+    obfuscate(bufp, nonce_used);
     bufp += nonce_used;
     u64_to_big_endian(bufp, ms_peer_get_cookie(p));
-    bufp += nonce_used;
+    bufp += 8;
     u64_to_big_endian(bufp, get_timestamp_sec());
     bufp += 8; /* sizeof(unsigned long long) */
     crypto_eddsa_sign(bufp, 

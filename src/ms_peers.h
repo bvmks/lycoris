@@ -1,8 +1,6 @@
 #ifndef _ms_peerION_H
 #define _ms_peerION_H
 
-
-#include "crypdf.h"
 struct ms_peer;
 struct ms_node_cfg;
 struct ms_udp_receiver;
@@ -29,11 +27,11 @@ unsigned long long ms_peer_get_cookie(struct ms_peer* p);
 const unsigned char* ms_peer_get_id(struct ms_peer* p);
 const unsigned char* ms_peer_get_kex(struct ms_peer* p);
 
-void ms_peer_fill_nounce(struct ms_peer* p, unsigned char n[nonce_used]);
+void ms_peer_fill_nounce(struct ms_peer* p, unsigned char* n);
 
+int ms_peer_should_init_assoc(const struct ms_peer* p);
 int ms_peer_assoc_status(const struct ms_peer* p);
 void ms_peer_set_assoc_status(struct ms_peer* p, int status);
-int ms_peer_should_init_assoc(const struct ms_peer* p);
 
 const char* ms_peer_description(const struct ms_peer* p);
 
