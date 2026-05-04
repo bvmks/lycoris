@@ -11,6 +11,7 @@ struct ms_node_cfg* make_node_cfg()
     n->listen_ip = 0;    
     n->listen_port = 0;    
 
+    n->kndb_file = NULL;
     n->keys_dir = NULL;
 
     n->allow_trust_conn = 0;
@@ -21,9 +22,14 @@ struct ms_node_cfg* make_node_cfg()
     return n;
 }
 
-void settle_keydir(struct ms_node_cfg* cfg)
+static void settle_keydir(struct ms_node_cfg* cfg)
 {
     settle_localpath(&cfg->keys_dir, ".ms/keys");
+}
+
+static void settle_kndb_file(struct ms_node_cfg* cfg)
+{
+    settle_localpath(&cfg->kndb_file, ".ms/known.db");
 }
 
 struct ms_node_cfg* make_node_def_cfg()
@@ -40,6 +46,7 @@ struct ms_node_cfg* make_node_def_cfg()
     n->sessions_limit = mscfg_def_sess_limit;
 
     settle_keydir(n);
+    settle_kndb_file(n);
     return n;
 }
 

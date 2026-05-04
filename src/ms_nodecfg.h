@@ -19,6 +19,7 @@ struct ms_node_cfg {
     unsigned int listen_ip;
     unsigned short listen_port;
 
+    char* kndb_file;
     char* keys_dir;
 
     int allow_trust_conn;
@@ -36,6 +37,4 @@ int read_node_cfg_file(struct ms_node_cfg* cfg, const char* fname);
 struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg);
 
 void dispose_node_cfg(struct ms_node_cfg* cfg);
-
-void settle_keydir(struct ms_node_cfg* cfg);
 #endif
