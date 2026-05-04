@@ -26,7 +26,6 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 {
     FILE* f;
     size_t r;
-    unsigned char pub_key_hash[32];
 
     nodeid_init(ni);
 
@@ -41,15 +40,19 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
 
     if (r != node_secret_size) {
         crypto_wipe(ni->secret, sizeof(ni->secret));
-        message_perror(mlv_alert, "load_nodeid_file", "seed file is too short or corrupted");
+        message_perror(mlv_alert, 
+                       "load_nodeid_file", "seed file is too short or corrupted");
         nodeid_init(ni);
         return 1;
     }
 
-    crypto_eddsa_key_pair(ni->master_privat_key, ni->master_public_key, ni->secret);
+    crypto_eddsa_key_pair(ni->master_privat_key, 
+                          ni->master_public_key,
+                          ni->secret);
 
-    crypto_blake2b(pub_key_hash, sizeof(pub_key_hash), ni->master_public_key, public_key_size);
-    memcpy(ni->node_id, pub_key_hash, node_id_size);
+    memcpy(ni->node_id, 
+           ni->master_public_key + public_key_size - node_id_size,
+           node_id_size);
     
     crypto_wipe(ni->secret, node_secret_size);
     return 0;
