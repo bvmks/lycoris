@@ -12,6 +12,12 @@ struct addrport { /* host byte order */
     unsigned short  port;
 };
 
+
+void ipport2mem(unsigned char mem[6], unsigned int ip, unsigned short port);
+
+void mem2ipport(const unsigned char mem[6],
+                unsigned int *ip, unsigned short *port);
+
 int addrport_equal(const struct addrport* a, const struct addrport* b);
 
 void ipport2str(char *str, unsigned int ip, unsigned short port);

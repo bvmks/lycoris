@@ -75,3 +75,25 @@ void sockaddr_in2addrport(struct addrport* addr, const struct sockaddr_in* so)
 }
 
 
+void ipport2mem(unsigned char mem[6], unsigned int ip, unsigned short port)
+{
+    mem[0] = (ip >> 24)  & 0xff;
+    mem[1] = (ip >> 16)  & 0xff;
+    mem[2] = (ip >>  8)  & 0xff;
+    mem[3] = ip          & 0xff;
+    mem[4] = (port >> 8) & 0xff;
+    mem[5] = port        & 0xff;
+}
+
+void mem2ipport(const unsigned char mem[6],
+                unsigned int *ip, unsigned short *port)
+{
+    *ip =
+        ((unsigned int)mem[0] << 24) |
+        ((unsigned int)mem[1] << 16) |
+        ((unsigned int)mem[2] << 8)  |
+        ((unsigned int)mem[3]);
+    *port =
+        ((unsigned int)mem[4] << 8)  |
+        ((unsigned int)mem[5]);
+}
