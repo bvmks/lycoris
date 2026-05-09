@@ -4,6 +4,7 @@
 #include <sue/sue_base.h>
 #include "crypdf.h"
 
+struct ms_peer;
 struct ms_peer_collection;
 struct ms_transmit_queue;
 struct ms_known_node_db;
@@ -34,6 +35,12 @@ int can_send_to_known(struct ms_udp_receiver* rx, unsigned char id[node_id_size]
 int send_to_known(struct ms_udp_receiver* rx, 
                   unsigned char id[node_id_size],
                   void* buf, int len);
+
+void handle_association_process(struct ms_udp_receiver *rx,
+                                struct ms_peer *fp);
+
+void ms_rx_peer_gone(struct ms_udp_receiver *rx,
+                     struct ms_peer *fp);
 
 int send_to(int fd, unsigned int ip, unsigned short port,
             const void *buf, int len);

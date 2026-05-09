@@ -42,10 +42,10 @@ echo_reply
 21..147             random padding
 
 assoc_request
-2..11       10      our_id
-12..43      32      kex
-44..51      8       nonce
-52..59      8       cookie
+2..9        8       cookie
+10..19      10      our_id
+20..51      32      kex
+52..59      8       nonce
 60..67      8       timestamp               /* seconds */
 68..131     64      our sign for ALL above
 132..147            random padding

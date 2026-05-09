@@ -153,7 +153,7 @@ static void send_plaintext_148(struct ms_udp_receiver *rx,
         return;
     }
 
-    msg = make_txitem_4ip(rx->txq, 128, 0, ip, port);
+    msg = make_txitem_4ip(rx->txq, 148, 0, ip, port);
 
     set_plain_dgram_head(msg->buf, cmd);
     if(payload_len > 0)
@@ -224,14 +224,16 @@ static void send_assoc_req(struct ms_udp_receiver* rx, struct ms_peer* p)
     ms_peer_getaddr(p, &ip, &port);
 /*
     assoc_request
-    2..11       10      our_id
-    12..43      32      kex
-    44..51      8       nonce
-    52..59      8       cookie
-    60..67      8       timestamp               
+    2..9        8       cookie
+    10..19      10      our_id
+    20..51      32      kex
+    52..59      8       nonce
+    60..67      8       timestamp
     68..131     64      our sign for ALL above
     132..147            random padding
 */
+    u64_to_big_endian(bufp, ms_peer_get_cookie(p));
+    bufp += 8;
     memcpy(bufp, ms_peer_get_id(p), node_id_size);
     bufp += node_id_size;
     memcpy(bufp, ms_peer_get_kex(p), kex_public_size);
@@ -239,8 +241,6 @@ static void send_assoc_req(struct ms_udp_receiver* rx, struct ms_peer* p)
     ms_peer_fill_nounce(p, bufp);
     obfuscate(bufp, nonce_used);
     bufp += nonce_used;
-    u64_to_big_endian(bufp, ms_peer_get_cookie(p));
-    bufp += 8;
     u64_to_big_endian(bufp, get_timestamp_sec());
     bufp += 8; /* sizeof(unsigned long long) */
     crypto_eddsa_sign(bufp, 
@@ -298,12 +298,13 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
     if(!p) {
         message(mlv_debug, "[DEBUG] stray echo reply from %s, dropping\n",
                 ipport2a(ip, port));
-        /*need to send error in return (will add later)*/
         return;
     }
-    /* we probably must cooldown peer than sent unrequested message*/
-    /* and send error in return */
-    /* but this will be added later (i hope)*/
+    /* TODO:
+        we will cooldown peer than sent unrequested message
+        and send error in return
+        but this will be added later (i hope)
+    */
     
     assoc_status = ms_peer_assoc_status(p);
     switch (assoc_status) {
@@ -318,6 +319,9 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
             return;
     }
 
+    message(mlv_debug, "[DEBUG] stray echo reply from %s, dropping\n",
+                ipport2a(ip, port));
+
     received_cookie = u64_from_big_endian(dgram+ echo_reply_reserved);
     ms_peer_set_cookie(p, received_cookie);
 
@@ -329,6 +333,29 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              unsigned char* dgram, int len)
 {
+    int r;
+    struct ms_peer* p;
+    unsigned long long received_cookie;
+    int assoc_status;
+    
+    received_cookie = u64_from_big_endian(dgram);
+    if(!cookie_is_valid(rx, ip, port, received_cookie))
+    {
+        message(mlv_debug, "[DEBUG] assoc request from %s has invalid cookie, dropping\n",
+                ipport2a(ip, port));
+        /* TODO: we DEFINITELY need to send error and probably set cooldown for this peer */
+        return;
+    }
+
+    p = get_peer_record(rx->peers, ip, port, 1);
+    r = peer_set_kex_public(rx->peers, p, dgram, 0);
+    message(mlv_normal, "[INFO] echo request from %s, will respond\n",
+            ipport2a(ip, port));
+
+
+
+
+
 
 }
 
@@ -416,7 +443,7 @@ static void the_fd_handler_write(struct sue_fd_handler *h)
 
     message(mlv_debug2, "[DEBUG] the_fd_handler_write called\n");
 
-    item = get_item_to_transmit(feda_rx->txq);
+    item = fetch_txitem_to_transmit(feda_rx->txq);
     if(!item)
         return;
 
@@ -481,7 +508,7 @@ static void the_timeout_hdl(struct sue_timeout_handler *hdl)
 
     message(mlv_debug2, "[DEBUG] the_timeout_hdl called\n");
 
-    // peers_timer_hook(rx->peers);
+    peers_timer_hook(rx->peers);
 
     rx->fdh.want_read = 1;
     rx->fdh.want_write = txq_want_write(rx->txq);
@@ -551,5 +578,11 @@ int start_udp_receiver(struct ms_udp_receiver *rx)
     sue_sel_register_timeout(rx->the_selector, &rx->tmoh);
 
     return 1;
+}
+
+void handle_association_process(struct ms_udp_receiver *rx,
+                                struct ms_peer *fp)
+{
+    /* TODO */
 }
 

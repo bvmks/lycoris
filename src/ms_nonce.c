@@ -2,10 +2,20 @@
 #include "ms_keyutils.h"
 #include <string.h>
 
+
+void ms_nonce_init(struct ms_nonce* n)
+{
+    n->local = 0;
+    n->max_received = 0;
+    n->received_mask = 0;
+}
+
 void ms_nonce_init_rand(struct ms_nonce* n)
 {
     fill_noise((unsigned char*)n->local, sizeof(n->local));
     ((unsigned char*)n->local)[sizeof(n->local)-1] = 1;
+    n->max_received = 0;
+    n->received_mask = 0;
 }
 
 int ms_nonce_chdup(const struct ms_nonce* nonce, unsigned long long n)

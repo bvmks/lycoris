@@ -10,6 +10,8 @@ struct ms_nonce {
 
 void ms_nonce_init_rand(struct ms_nonce* n);
 
+void ms_nonce_init(struct ms_nonce* n);
+
 /* 
  * checks if nounce is duplicate
  * if so returns 1, otherwise 0

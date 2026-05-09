@@ -17,7 +17,7 @@ int comctx_init(struct ms_crypto_comm_ctx *ctx)
 
     crypto_x25519_public_key(ctx->kex_public, ctx->kex_secret);
     
-    ms_nonce_init_rand(&ctx->nonce);
+    ms_nonce_init(&ctx->nonce);
 
     return 1;
 }
