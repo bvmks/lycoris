@@ -76,7 +76,7 @@ struct ms_transmit_item* make_txitem_4peer(struct ms_transmit_queue* txq,
 {
     struct ms_transmit_item* res;
     res = make_txitem(txq, len, offset);
-    peer_getaddr(peer, &res->ip, &res->port);
+    peer_get_addr(peer, &res->ip, &res->port);
     res->the_peer = peer;
     return res;
 }

@@ -71,7 +71,7 @@ int main(int argc, char** argv)
         use_port = def_port;
     
     ensure_wdir();
-    message_set_verbosity(mlv_debug);
+    message_set_verbosity(mlv_info);
 
     sue_alloc_init_default();
 

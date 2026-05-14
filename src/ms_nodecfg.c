@@ -28,7 +28,7 @@ struct ms_node_cfg* make_node_cfg()
     
     p->cooldown_timeout = mscfg_def_cooldown_timeout;
     p->peer_timeout = mscfg_def_peer_timeout;
-    p->keepalive_interval = 120;
+    p->keepalive_interval = mscfg_def_keepalive_interval;
     p->first_peer = NULL;
 
     return p;

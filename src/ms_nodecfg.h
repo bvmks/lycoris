@@ -9,8 +9,8 @@ enum {
     mscfg_def_port = 24880,
 
     mscfg_def_cooldown_timeout = 3600,
-    mscfg_def_peer_timeout = 120,
-    mscfg_def_keepalive_interval = 120,
+    mscfg_def_peer_timeout = 180,
+    mscfg_def_keepalive_interval = 60,
 };
 
 enum {peer_name_length_limit = 60};

@@ -121,6 +121,20 @@ static void do_remove_from_list(struct addr_collection *coll,
     item->prev = NULL;
 }
 
+void addritem_reset(struct addr_item *item)
+{
+    struct addr_collection *coll = item->the_master;
+
+    do_remove_from_list(coll, item);
+    item->timemark = coll->curtime;
+    item->prev = coll->last;
+    if(coll->last)
+        coll->last->next = item;
+    else
+        coll->first = item;
+    coll->last = item;
+}
+
 struct addr_item* addrcoll_permadd(struct addr_collection *coll,
                                        unsigned int ip, unsigned short port)
 {

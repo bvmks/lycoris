@@ -43,6 +43,7 @@ enum {
     ms_cmd_error         = 0xEE,
 
     ms_cmd_keep_alive    = 0xAE,        /* encrypted */
+    ms_cmd_im_alive      = 0xAF,
 
     ms_cmd_data          = 0xDA,
 

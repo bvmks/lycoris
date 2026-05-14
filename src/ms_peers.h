@@ -23,7 +23,7 @@ const char* assoc_status_str(int status);
 
 void dbug_print_all_peers(struct ms_peer_collection* col);
 
-void peer_getaddr(const struct ms_peer* peer, unsigned int* ip, unsigned short* port);
+void peer_get_addr(const struct ms_peer* peer, unsigned int* ip, unsigned short* port);
 
 int timemark_minutes(const struct ms_peer_collection* col);
 unsigned long long timemark_sec(const struct ms_peer_collection* col);
@@ -37,6 +37,9 @@ int peer_check_cookie(const struct ms_peer* peer, const unsigned char cookie [8]
 const unsigned char* peer_cookie(struct ms_peer* peer);
 
 const unsigned char* peer_id(struct ms_peer* peer);
+
+int peer_kex_public_is_same(const struct ms_peer* peer,
+                            const unsigned char* kex_public);
 
 int peer_set_kex_public(struct ms_peer_collection* col, struct ms_peer* peer,
                         const unsigned char* kex_public, int signchecked);

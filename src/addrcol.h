@@ -35,6 +35,8 @@ void addrcoll_init(struct addr_collection* coll,
 int addrcoll_update(struct addr_collection* coll,
                            long long current_time);
 
+void addritem_reset(struct addr_item *item);
+
 
 struct addr_item* addrcoll_find(struct addr_collection* coll,
                                     unsigned int ip, unsigned short port,
