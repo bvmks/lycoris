@@ -446,8 +446,8 @@ static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
     unsigned int ip;
     unsigned short port;
     peer_get_addr(peer, &ip, &port);
-    message(mlv_debug2,
-            "[DEBUG] sending keepalive to %s\n",
+    message(mlv_info,
+            "[INFO] sending keepalive to %s\n",
             ipport2a(ip, port));
     unsigned char payload = ms_cmd_keep_alive;
     send_encrypted(rx, peer, &payload, 1);
