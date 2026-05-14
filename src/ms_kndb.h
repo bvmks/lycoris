@@ -19,7 +19,7 @@ int kndb_get_node(struct known_nodes_db* db,
                   const unsigned char *node_id,
                   unsigned char *pubkey);
 
-int test_init_kndb(struct known_nodes_db* db);
+int test_init_kndb(struct known_nodes_db* db, unsigned char* node1, unsigned char* pub1);
 
 struct known_nodes_db* load_kndb(struct ms_node_cfg* cfg);
 

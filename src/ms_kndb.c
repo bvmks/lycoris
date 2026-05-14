@@ -2,9 +2,7 @@
 #include <string.h>
 
 #include "ms_kndb.h"
-#include "message.h"
 #include "ms_nodecfg.h"
-#include "hexdata.h"
 
 struct ms_known_node {
     unsigned char id[node_id_size];
@@ -39,24 +37,13 @@ static void enlist_known_node(struct known_nodes_db* db, struct ms_known_node* n
     db->first = node;
 }
 
-int test_init_kndb(struct known_nodes_db* db)
+int test_init_kndb(struct known_nodes_db* db, unsigned char* node1, unsigned char* pub1)
 {
     struct ms_known_node* n;
-    int res;
-    char* node1 = "a473aa3ee7ecfb25daee";
-    char* pub1 = "71821bc554c753efba6a2a5ba4fd2ecd5dd39520470ca473aa3ee7ecfb25daee";
 
     n = make_known_node();
-    res = hexstr2data(n->id, node_id_size, node1);
-    if(res != node_id_size) {
-        message(mlv_normal, "invalid `node_id' [%s]\n", node1);
-        return 0;
-    }
-    res = hexstr2data(n->pubkey, public_key_size, pub1);
-    if(res != public_key_size) {
-        message(mlv_normal, "invalid `pubkey' [%s]\n", pub1);
-        return 0;
-    }
+    memcpy(n->id, node1, node_id_size);
+    memcpy(n->pubkey, pub1, public_key_size);
 
     enlist_known_node(db, n);
 

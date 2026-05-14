@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <string.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -20,6 +21,7 @@
 #include "ms_lh.h"
 #include "hexdata.h"
 #include "addrport.h"
+#include "ms_rx.h"
 
 enum {
     def_port = 24880,
@@ -52,40 +54,6 @@ static void free_targets(struct ms_signal_target* st, struct ms_loophook_target*
         free(lt);
 }
 
-static void enlist_peer_conf(struct peer_conf** list, struct peer_conf* conf)
-{
-    conf->next = *list;
-    *list = conf;
-}
-
-static void add_test_peers(struct ms_node_cfg* cfg)
-{
-    int res;
-    char* node1 = "a473aa3ee7ecfb25daee";
-    struct peer_conf* conf1;
-    struct peer_conf* conf2;
-
-    conf1 = malloc(sizeof(*conf1));
-    conf2 = malloc(sizeof(*conf2));
-
-    res = hexstr2data(conf1->node_id, node_id_size, node1);
-    if(res != node_id_size) {
-        message(mlv_normal, "invalid `node_id' [%s]\n", node1);
-        return;
-    }
-    str2ip(&conf1->ip, "127.0.0.1");
-    conf1->port = def_port;
-    enlist_peer_conf(&cfg->first_peer, conf1);
-
-    // res = hexstr2data(conf2->node_id, node_id_size, node1);
-    // if(res != node_id_size) {
-    //     message(mlv_normal, "invalid `node_id' [%s]\n", node1);
-    //     return;
-    // }
-    // str2ip(&conf2->ip, "127.0.0.1");
-    // conf2->port = def_port2;
-    // enlist_peer_conf(&cfg->first_peer, conf2);
-}
 
 int main(int argc, char** argv)
 {
@@ -114,7 +82,6 @@ int main(int argc, char** argv)
      * i will make (steal) text parser for cfg loading later (maybe)
     */
     node_cfg = make_node_def_cfg();
-    add_test_peers(node_cfg);
     node_cfg->listen_port = use_port;
 
     receiver = make_udp_receiver(&selector, node_cfg);
