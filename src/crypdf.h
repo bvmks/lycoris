@@ -5,19 +5,23 @@ enum {
     secret_key_size = 64,
     public_key_size = 32,
     
-    cookish_size = 32,
-    cookie_lifetime = 30, /* seconds */
+    token_key_size = 32,
+    token_size = sizeof(unsigned long long),
+    token_lifetime = 30, /* seconds */
+
+    timemark_gap = 10, /* seconds */
 
     shared_secret_size = 32,
     kex_secret_size = 32,
     kex_public_size = 32,
     cipher_key_size = 32,
 
-    sign_size,
+    sign_size = 64,
 
-    nonce_total = 24,
-    nonce_used = 8,
-    nonce_offset = nonce_total - nonce_used,
+    cipher_nonce_total = 24,
+    cipher_nonce_used = 8,
+    cipher_nonce_offset = cipher_nonce_total - cipher_nonce_used,
+    cipher_mac_size = 16,
     
     node_secret_size = 32,
 

@@ -2,39 +2,51 @@
 #define _MS_NODE_CFG_H
 
 #include <netinet/in.h>
+#include "crypdf.h"
 
 enum {
     mscfg_def_ip = INADDR_ANY,
     mscfg_def_port = 24880,
 
-    mscfg_def_truct_conn = 1,
-
-    mscfg_def_sess_limit = 5,
-    mscfg_def_sess_timeout = 10000,
-
+    mscfg_def_cooldown_timeout = 3600,
+    mscfg_def_peer_timeout = 120,
+    mscfg_def_keepalive_interval = 120,
 };
 
+enum {peer_name_length_limit = 60};
+
+struct peer_conf {
+    char name[peer_name_length_limit + 1];
+    int type;
+    unsigned int ip;
+    unsigned short port;
+    unsigned char node_id[node_id_size];
+    struct peer_conf *next;
+};
+
+#define PEER_IP_UNDEF ((unsigned int)(-1))
+
+int peer_conf_has_ip(const struct peer_conf *pc);
+int peer_conf_has_id(const struct peer_conf *pc);
 
 struct ms_node_cfg {
     unsigned int listen_ip;
     unsigned short listen_port;
 
-    char* kndb_file;
+    char* kndb_dir;
     char* keys_dir;
 
-    int allow_trust_conn;
-
-    int sessions_limit;
-    int session_timeout;
+    int cooldown_timeout, peer_timeout, keepalive_interval;
+    struct peer_conf *first_peer;
 };
+
+
 
 struct ms_node_cfg* make_node_cfg();
 
 struct ms_node_cfg* make_node_def_cfg();
 
 int read_node_cfg_file(struct ms_node_cfg* cfg, const char* fname);
-
-struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg);
 
 void dispose_node_cfg(struct ms_node_cfg* cfg);
 #endif

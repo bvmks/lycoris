@@ -35,6 +35,45 @@ const char *hexdata2a(const unsigned char *data, int datalen)
     return buf;
 }
 
+int hexdigval(char dig)
+{
+    if(dig >= '0' && dig <= '9')
+        return dig - '0';
+    if(dig >= 'a' && dig <= 'f')
+        return dig - 'a' + 10;
+    if(dig >= 'A' && dig <= 'F')
+        return dig - 'A' + 10;
+    return -1;
+}
+
+static int iswhitespace(int c)
+{
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+int hexstr2data(unsigned char *data, int datasize, const char *str)
+{
+    int dest, i, half, val;
+    dest = 0;
+    half = 0;
+    for(i = 0; str[i]; i++) {
+        char c = str[i];
+        int dig;
+        if(iswhitespace(c))
+            continue;
+        dig = hexdigval(c);
+        if(dig == -1)
+            return -(i+1);
+        val = !half ? ((dig << 4) & 0xf0) : (val | (dig & 0x0f));
+        if(half) {
+            if(dest < datasize)
+                data[dest] = val;
+            dest++;
+        }
+        half = !half;
+    }
+    return half ? -(i+1) : dest;
+}
 
 unsigned int u32_from_big_endian(const unsigned char d[4])
 {

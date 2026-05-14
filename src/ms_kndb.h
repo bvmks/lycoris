@@ -3,18 +3,24 @@
 
 #include "crypdf.h"
 
+enum {
+    kndb_res_success           =  0,
+    kndb_res_node_unknown      = -2,
+};
+
 struct ms_known_node;
-struct ms_known_node_db;
+struct known_nodes_db;
+struct ms_node_cfg;
 
-struct ms_known_node_db* make_kndb();
-void dispose_kndb(struct ms_known_node_db* db);
+struct known_nodes_db* make_kndb(struct ms_node_cfg* cfg);
+void dispose_kndb(struct known_nodes_db* db);
 
-void kndb_add_node(struct ms_known_node_db* db, 
-                   struct ms_known_node* node);
+int kndb_get_node(struct known_nodes_db* db,
+                  const unsigned char *node_id,
+                  unsigned char *pubkey);
 
-struct ms_known_node* kndb_find_node(struct ms_known_node_db* db, 
-                                     unsigned char id[node_id_size]);
+int test_init_kndb(struct known_nodes_db* db);
 
-struct ms_known_node_db* load_kndb(char* fname);
+struct known_nodes_db* load_kndb(struct ms_node_cfg* cfg);
 
 #endif

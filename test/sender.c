@@ -17,6 +17,7 @@ int main(int argc, char **argv)
     struct addrport dst;
     char buf[1000];
     // char buf[] =  "bebra";
+    msg_len = 300;
 
     if (argc < 2) {
         printf("usage: %s ip:port\n", argv[0]);
@@ -31,7 +32,6 @@ int main(int argc, char **argv)
         // ok = scanf("%s", buf);
         // if(ok == 1) {
             usleep(100);
-            msg_len = strlen(buf);
             send_to(sockfd, dst.addr, dst.port, buf, msg_len+1);
         // }
     }

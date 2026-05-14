@@ -6,70 +6,202 @@
 #include "ms_peers.h"
 #include "ms_rx.h"
 #include "ms_comm_ctx.h"
-#include "ms_nonce.h"
 #include "addrcol.h"
 #include "addrport.h"
 #include "message.h"
 #include "hexdata.h"
+#include "ms_nodecfg.h"
+#include "keyutils.h"
+#include "unitable.h"
 
-void peers_timer_hook(struct ms_peer_collection *coll)
+
+enum { nonce_max_gap = 50 };
+
+struct ms_peer {
+    struct ms_peer_collection *the_master;
+    struct addr_item *the_item;
+
+    unsigned int ip;
+    unsigned short port;
+
+    struct peer_conf *the_conf_by_id, *the_conf_by_ip;
+
+    int init_assoc; /* bool */
+    int assoc_status;
+
+    unsigned char node_id[node_id_size];
+    unsigned char remote_pubkey[public_key_size];/* remote sign key*/
+    unsigned char nonce_counter[8];
+    unsigned char last_nonce[8];
+
+    unsigned char remote_kex_pub[kex_public_size];
+    unsigned char decrypt_key[cipher_key_size];
+    unsigned char encrypt_key[cipher_key_size];
+
+    unsigned long long token;   /* token from echo reply */
+    unsigned char cookie[8];    /* cookie used for assoc_req/assoc_fini excange */
+    unsigned long long last_timemark; /* timemark of last valid accepted assoc_req */
+
+    unsigned long long last_rx;
+    unsigned long long last_tx;
+};
+
+struct peercoll_item {
+    struct ms_peer *peer;
+    struct peercoll_item *next;
+};
+
+struct ms_peer_collection {
+    struct ms_node_cfg *the_conf;
+    struct ms_udp_receiver *the_rx;
+    struct crypto_comm_ctx* the_comctx;
+    struct addr_collection cooldown, peers;
+    struct peercoll_item *permpeer_first;
+    unsigned long long count;
+};
+
+
+const char* assoc_status_str(int status)
 {
-    long long tm;
-    int res;
-    struct peercoll_item *item;
+    switch (status) {
+        case as_none: return "none";
+        case as_gave_up: return "gave_up";
+        case as_not_desired: return "not_desired";
+        case as_established: return "established";
+        case as_echo_request_sent: return "echo_request_sent";
+        case as_assoc_request_sent: return "assoc_request_sent";
+        case as_assoc_fini_sent: return "assoc_fini_sent";
+        default: return "unknown";
+    }
+}
 
-    tm = time(NULL);
-
-    message(mlv_debug2, "[DEBUG] ms_peercoll_hook called, tm=%lld", tm);
-
-    res = addrcoll_update(&coll->cooldown, tm);
-    if(res)
-        addrcoll_process(&coll->cooldown);
-
-    res = addrcoll_update(&coll->peers, tm);
-    if(res)
-        addrcoll_process(&coll->peers);
-
-    for(item = coll->permpeer_first; item; item = item->next) {
-        struct ms_peer *fp = item->peer;
-        if(fp->assoc_status != msas_not_needed &&
-            fp->assoc_status != msas_gave_up
-        ) {
-            handle_association_process(coll->the_rx, item->peer);
+void dbug_print_all_peers(struct ms_peer_collection* col) 
+{
+    /*
+        TODO: make traverse function with callback for map
+        AND MOVE ALL THIS SHIT THERE
+    */
+    int i;
+    for(i = 0; i < col->peers.map.capacity; i++) {
+        struct ut_node* node = col->peers.map.buckets[i];
+        for(;node;node = node->next) {
+            struct addr_item* item = node->userdata;
+            struct ms_peer* peer = item->userdata;
+            message(mlv_debug, "[DEBUG] peer in collection %s\n",
+                    ipport2a(peer->ip, peer->port));
         }
     }
 }
 
-static void mspeer_timeout_hook(struct addr_item *item)
+void peers_timer_hook(struct ms_peer_collection* col)
+{
+    long long tm;
+    int res;
+    struct peercoll_item* item;
+
+
+    tm = time(NULL);
+
+    message(mlv_debug2, "[DEBUG] ms_peercoll_hook called, tm=%lld\n", tm);
+
+    res = addrcoll_update(&col->cooldown, tm);
+    if(res)
+        addrcoll_process(&col->cooldown);
+
+    res = addrcoll_update(&col->peers, tm);
+    if(res)
+        addrcoll_process(&col->peers);
+
+    for(item = col->permpeer_first; item; item = item->next) {
+        struct ms_peer* peer = item->peer;
+
+        if(peer->assoc_status != as_not_desired &&
+            peer->assoc_status != as_gave_up
+        ) {
+            handle_assoc_process(col->the_rx, item->peer);
+        }
+    }
+}
+
+int timemark_minutes(const struct ms_peer_collection* col)
+{
+    return (col->peers.starttime + (long long)col->peers.curtime) / 60;
+}
+
+unsigned long long timemark_sec(const struct ms_peer_collection* col)
+{
+    return (col->peers.starttime + (long long)col->peers.curtime);
+}
+
+void peer_fill_nonce(struct ms_peer* peer, unsigned char* buf)
+{
+    increment_buf(peer->nonce_counter, sizeof(peer->nonce_counter));
+    memcpy(buf, peer->nonce_counter, sizeof(peer->nonce_counter));
+}
+
+int peer_check_update_nonce(struct ms_peer* peer, const unsigned char* nonce,
+                     const char* caller_name)
+{
+    unsigned long long known_nonce, new_nonce;
+    char noncestr[32];
+
+    known_nonce = u64_from_little_endian(peer->last_nonce);
+    new_nonce = u64_from_little_endian(nonce);
+
+    if(known_nonce == 0 || new_nonce > known_nonce) {
+        memcpy(peer->last_nonce, nonce, sizeof(peer->last_nonce));
+        message(mlv_debug, "[DEBUG] set known_nonce %s for %s (caller %s)\n",
+                noncestr, peer_description(peer), caller_name);
+        return 1;
+    }
+
+    if(known_nonce == new_nonce ||
+        (new_nonce < known_nonce && known_nonce-new_nonce > nonce_max_gap)
+    ) {
+        message(mlv_debug,
+            "[DEBUG] %s: nonce check failed for %s (known %llx, new %llx)\n",
+            caller_name, peer_description(peer), known_nonce, new_nonce);
+        return 0;
+    }
+ 
+    return 1;
+}
+
+static int peer_has_id(const struct ms_peer* peer)
+{
+    return !all_zeroes(peer->node_id, node_id_size);
+}
+
+static void mspeer_timeout_hook(struct addr_item* item)
 {
     unsigned int ip;
     unsigned short port;
     addritem_getaddr(item, &ip, &port);
     message(mlv_info, "[INFO] peer %s timed out\n", ipport2a(ip, port));
-    inaddritem_remove(item);
+    addritem_remove(item);
 }
 
-static void mspeer_destruction_hook(struct addr_item *item)
+static void mspeer_destruction_hook(struct addr_item* item)
 {
     if(item->userdata) {
         struct ms_peer *p = item->userdata;
-        message(mlv_debug, "[DEBUG] removing peer %s",
-                ms_peer_description(p));
+        message(mlv_debug, "[DEBUG] removing peer %s\n",
+                peer_description(p));
         ms_rx_peer_gone(p->the_master->the_rx, p);
         free(item->userdata);
     } else {
         unsigned int ip;
         unsigned short port;
         addritem_getaddr(item, &ip, &port);
-        message(mlv_debug, "[DEBUG] removing peer %s (?!)",
+        message(mlv_debug, "[DEBUG] removing peer %s (?!)\n",
                 ipport2a(ip, port));
     }
 }
 
 /* must be only constructor for ms_peer */
-static void ms_peer_init(struct ms_peer_collection* coll, struct addr_item* item)
+static void peer_init(struct ms_peer_collection* col, struct addr_item* item)
 {
-    struct ms_peer *p;
+    struct ms_peer *peer;
     unsigned int ip;
     unsigned short port;
 
@@ -78,137 +210,358 @@ static void ms_peer_init(struct ms_peer_collection* coll, struct addr_item* item
 
     addritem_getaddr(item, &ip, &port);
 
-    p = malloc(sizeof(*p));
-    memset(p, 0, sizeof(*p));
-    p->the_master = coll;
-    p->the_item = item;
-    p->ip = ip;
-    p->port = port;
-    p->created_at = 0;
-    p->last_rx = -1;
-    p->last_tx = -1;
-    p->last_cookie = -1;
-    p->init_assoc = 0;
-    p->assoc_status = msas_not_needed;
-    comctx_init(&p->comctx);
-    item->userdata = p;
+    peer = malloc(sizeof(*peer));
+    memset(peer, 0, sizeof(*peer));
+    peer->the_master = col;
+    peer->the_item = item;
+    peer->ip = ip;
+    peer->port = port;
+    peer->last_timemark = 0;
+    peer->last_rx = -1;
+    peer->last_tx = -1;
+    peer->token = 0;
+    peer->init_assoc = 0;
+    peer->assoc_status = as_none;
+    item->userdata = peer;
     item->timeout_hook = mspeer_timeout_hook;
     item->destruction_hook = mspeer_destruction_hook;
 }
 
-
-void ms_peer_fill_nounce(struct ms_peer* p, unsigned char* n)
+int peer_ever_had_assoc(const struct ms_peer* peer)
 {
-    fill_nounce(&p->comctx.nonce, n);
+    return !all_zeroes(peer->remote_pubkey, sizeof(peer->remote_pubkey));
 }
 
-
-const char* ms_peer_description(const struct ms_peer* p)
+static void find_termz(char **p)
 {
-    /*TODO*/
-    return 0;
+    while(**p)
+        (*p)++;
 }
 
-void ms_peer_getaddr(const struct ms_peer* p, unsigned int* ip, unsigned short* port)
+const char *peer_description(const struct ms_peer* peer)
+{
+    static char res[256];
+    char *p = res;
+
+    strcpy(p, ipport2a(peer->ip, peer->port));
+    find_termz(&p);
+
+    if(peer->the_conf_by_ip) {
+        *p = ' ';
+        p++;
+        *p = '[';
+        p++;
+        strcpy(p, peer->the_conf_by_ip->name);
+        find_termz(&p);
+        *p = ']';
+        p++;
+    }
+
+    if(peer_has_id(peer)) {
+        *p = ' ';
+        p++;
+        *p = '(';
+        p++;
+        if(peer->assoc_status != as_established) {
+            *p = peer_ever_had_assoc(peer) ? '~' : '?';
+            p++;
+            *p = ':';
+            p++;
+        }
+        hexdata2str(p, peer->node_id, node_id_size);
+        p += node_id_size*2;
+        if(peer->the_conf_by_id) {
+            *p = ' ';
+            p++;
+            *p = '[';
+            p++;
+            strcpy(p, peer->the_conf_by_id->name);
+            find_termz(&p);
+            *p = ']';
+            p++;
+        }
+        *p = ')';
+        p++;
+    }
+
+    *p = 0;
+    return res;
+}
+
+void peer_getaddr(const struct ms_peer* peer, unsigned int* ip, unsigned short* port)
 {
     if(ip) 
-        *ip = p->ip;
+        *ip = peer->ip;
     if(port) 
-        *port = p->port;
+        *port = peer->port;
 }
 
-void ms_peer_set_cookie(struct ms_peer* p, unsigned long long cookie)
+void peer_set_token(struct ms_peer* peer, unsigned long long token)
 {
-    p->last_cookie = cookie;
+    peer->token = token;
 }
 
-unsigned long long ms_peer_get_cookie(struct ms_peer* p)
+unsigned long long peer_token(struct ms_peer* peer)
 {
-    return p->last_cookie;
-}
-
-const unsigned char* ms_peer_get_id(struct ms_peer* p)
-{
-    return p->id;
-}
-
-const unsigned char* ms_peer_get_kex(struct ms_peer* p)
-{
-    return p->comctx.kex_public;
+    return peer->token;
 }
 
 
-int ms_peer_assoc_status(const struct ms_peer* p)
+void peer_set_cookie(struct ms_peer* peer, const unsigned char cookie[8])
 {
-    return p->assoc_status;
+    memcpy(peer->cookie, cookie, 8);
 }
 
-void ms_peer_set_assoc_status(struct ms_peer* p, int status)
+void peer_generate_new_cookie(struct ms_peer* peer)
 {
-    p->assoc_status = status;
+    get_random(&peer->cookie, 8);
 }
 
-void update_peer_last_rx(struct ms_peer *fp)
+const unsigned char* peer_cookie(struct ms_peer* peer)
 {
-    fp->last_rx = fp->the_master->peers.curtime;
+    return peer->cookie;
 }
 
-void update_peer_last_tx(struct ms_peer *fp)
+int peer_check_cookie(const struct ms_peer* peer, const unsigned char cookie [8])
 {
-    fp->last_tx = fp->the_master->peers.curtime;
+    return 0 == memcmp(peer->cookie, cookie, 8);
 }
 
-int peer_kex_public_is_same(const struct ms_peer *fp,
-                            const unsigned char *kex_public)
+const unsigned char* peer_id(struct ms_peer* peer)
 {
-     return 0 == memcmp(fp->comctx.remote_kex_public, kex_public, kex_public_size);
+    return peer->node_id;
 }
 
-int peer_set_kex_public(struct ms_peer_collection *coll, struct ms_peer *peer,
-                        const unsigned char *kex_public, int signchecked)
+const unsigned char* peer_encrypt_key(const struct ms_peer* peer)
 {
-    if(0 == memcmp(peer->comctx.remote_kex_public, kex_public, kex_public_size))
-        return 1;    /* nothing new */
+    return peer->encrypt_key;
+}
 
-    if(!signchecked && peer->assoc_status == msas_established)
-        return 0;    /* this means established cryptographic association */
+const unsigned char* peer_decrypt_key(const struct ms_peer* peer)
+{
+    return peer->decrypt_key;
+}
 
-    memcpy(peer->comctx.remote_kex_public, kex_public, kex_public_size);
+void peer_set_last_tm(struct ms_peer* peer, unsigned long long ts)
+{
+    peer->last_timemark = ts;
+}
 
-    derive_keys(peer->comctx.kex_secret,
-                peer->comctx.kex_public, peer->comctx.remote_kex_public,
-                peer->comctx.encrypt_key, peer->comctx.decrypt_key);
+unsigned long long peer_get_last_tm(const struct ms_peer* peer)
+{
+    return peer->last_timemark;
+}
 
-    ms_nonce_init(&peer->comctx.nonce);
 
-    message(mlv_debug, "[DEBUG] set kex pub %s for %s",
-            hexdata2a(peer->comctx.remote_kex_public, kex_public_size),
+int peer_assoc_status(const struct ms_peer* peer)
+{
+    return peer->assoc_status;
+}
+
+int peer_should_init_assoc(const struct ms_peer* peer)
+{
+    return peer->init_assoc;
+}
+
+void peer_set_init_assoc(struct ms_peer* peer)
+{
+    peer->init_assoc = 1;
+}
+
+void peer_reset_init_assoc(struct ms_peer* peer)
+{
+    peer->init_assoc = 0;
+}
+
+void peer_set_assoc_status(struct ms_peer* peer, int status)
+{
+    peer->assoc_status = status;
+}
+
+void update_peer_last_rx(struct ms_peer* peer)
+{
+    peer->last_rx = peer->the_master->peers.curtime;
+}
+
+void update_peer_last_tx(struct ms_peer* peer)
+{
+    peer->last_tx = peer->the_master->peers.curtime;
+}
+
+void peer_get_idle(const struct ms_peer* peer,
+                   int *since_last_rx, int *since_last_tx)
+{
+    int curtime = peer->the_master->peers.curtime;
+
+    if(since_last_rx)
+        *since_last_rx = curtime - peer->last_rx;
+    if(since_last_tx)
+        *since_last_tx = curtime - peer->last_tx;
+}
+
+
+int peer_kex_public_is_same(const struct ms_peer* peer,
+                            const unsigned char* kex_public)
+{
+     return 0 == memcmp(peer->remote_kex_pub, kex_public, kex_public_size);
+}
+
+
+int peer_set_kex_public(struct ms_peer_collection* col, struct ms_peer* peer,
+                        const unsigned char* kex_public, int signchecked)
+{
+    if(0 == memcmp(peer->remote_kex_pub, kex_public, kex_public_size))
+        return 1;
+
+    if(!signchecked && peer->assoc_status == as_established)
+        return 0;
+
+    memcpy(peer->remote_kex_pub, kex_public, kex_public_size);
+
+    derive_cipher_keys(col->the_comctx->kex_secret,
+                       col->the_comctx->kex_public, peer->remote_kex_pub,
+                       peer->encrypt_key, peer->decrypt_key);
+
+    memset(peer->nonce_counter, 0, sizeof(peer->nonce_counter));
+
+    message(mlv_debug, "[DEBUG] set kex pub %s for %s\n",
+            hexdata2a(peer->remote_kex_pub, kex_public_size),
             ipport2a(peer->ip, peer->port));
     return 1;
 }
 
+static void enlist_permpeer(struct ms_peer_collection* col, struct ms_peer* peer)
+{
+    struct peercoll_item *tmp;
+    tmp = malloc(sizeof(*tmp));
+    tmp->peer = peer;
+    tmp->next = col->permpeer_first;
+    col->permpeer_first = tmp;
+}
 
-struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* node, struct ms_node_cfg* cfg)
+static void add_configured_peers(struct ms_peer_collection* col)
+{
+    struct peer_conf* conf;
+    for(conf = col->the_conf->first_peer; conf; conf = conf->next) {
+        struct addr_item* item;
+        struct ms_peer* peer;
+        if(!peer_conf_has_ip(conf))
+            continue;
+        item = addrcoll_permadd(&col->peers, conf->ip, conf->port);
+        if(!item->userdata)
+            peer_init(col, item);
+        peer = item->userdata;
+        peer->the_conf_by_ip = conf;
+        if(peer_conf_has_id(conf)) {
+            peer->the_conf_by_id = conf;
+            memcpy(peer->node_id, conf->node_id, node_id_size);
+        }
+        peer->init_assoc = 0;
+        peer->assoc_status = as_none;
+        enlist_permpeer(col, peer);
+    }
+}
+
+
+struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* rx, 
+                                                struct ms_node_cfg* cfg,
+                                                struct crypto_comm_ctx* comctx)
 {
     struct ms_peer_collection* col;
+    long long tm;
     col = malloc(sizeof(*col));
+    col->the_conf = cfg;
+    col->the_rx = rx;
+    col->the_comctx = comctx;
     col->count = 0;
+
+    tm = time(NULL);
+    addrcoll_init(&col->cooldown, tm, cfg->cooldown_timeout);
+    addrcoll_init(&col->peers, tm, cfg->peer_timeout);
+
+
+    add_configured_peers(col);
+
     return col;
 }
 
-struct ms_peer* get_peer_record(struct ms_peer_collection* coll,
+struct ms_peer* get_peer_record(struct ms_peer_collection* col,
                          unsigned int ip, unsigned short port, int add)
 {
     struct addr_item *p;
-    p = addrcoll_find(&coll->peers, ip, port, add);
+    p = addrcoll_find(&col->peers, ip, port, add);
     if(!p)
         return NULL;
     if(!p->userdata) {    
-        ms_peer_init(coll, p);
+        peer_init(col, p);
         message(mlv_info, "[INFO] new peer %s\n", ipport2a(ip, port));
     }
-    /* !!! the following block may be removed at any time, it's debug only */
     return p->userdata;
+}
+
+int node_id_is_same(const struct ms_peer* peer, const unsigned char* id)
+{
+    return !memcmp(peer->node_id, id, node_id_size);
+}
+
+int peer_set_identity(struct ms_peer* peer,
+                      const unsigned char* node_id,
+                      const unsigned char* pubkey)
+{
+    struct peer_conf *conf;
+    unsigned int ip = peer->ip;
+    unsigned short port = peer->port;
+
+    message(mlv_debug,
+            "[DEBUG] peer_set_identity called for %s; to set %s\n",
+            peer_description(peer), hexdata2a(node_id, node_id_size));
+
+    if(peer_has_id(peer) &&
+        (0 != memcmp(peer->node_id, node_id, node_id_size))
+    ) {
+        char nid_str[node_id_size * 2 + 1];
+        char cur_nid_str[node_id_size * 2 + 1];
+        hexdata2str(nid_str, node_id, node_id_size);
+        hexdata2str(cur_nid_str, peer->node_id, node_id_size);
+        message(mlv_normal,
+            "[INFO] for peer %s: refusing to replace %s with %s",
+            ipport2a(ip, port), cur_nid_str, nid_str);
+        return 0;
+    }
+
+    for(conf = peer->the_master->the_conf->first_peer; conf; conf = conf->next) {
+        int have_ip, have_id, match_ip, match_id;
+
+        have_ip = peer->ip != PEER_IP_UNDEF;
+        match_ip = ip == conf->ip && (port == conf->port || conf->port == 0);
+        have_id = peer_conf_has_id(conf);
+        match_id = have_id && 0 == memcmp(node_id, conf->node_id, node_id_size);
+
+        if(!match_ip && !match_id)
+            continue;
+        if(have_ip && match_ip && have_id && !match_id) {
+                /* we have to refuse this peer! */
+            char nid_str[node_id_size * 2 + 1];
+            char conf_nid_str[node_id_size * 2 + 1];
+            hexdata2str(nid_str, node_id, node_id_size);
+            hexdata2str(conf_nid_str, conf->node_id, node_id_size);
+            message(mlv_normal,
+                "[INFO] refusing assoc with %s: %s mismatches our config %s",
+                ipport2a(ip, port), nid_str, conf_nid_str);
+            return 0;
+        }
+        if(have_ip && match_ip && !peer->the_conf_by_ip) {
+            peer->the_conf_by_ip = conf;
+        }
+        if(have_id && match_id && !peer->the_conf_by_id) {
+            peer->the_conf_by_id = conf;
+        }
+    }
+
+    memcpy(peer->node_id, node_id, node_id_size);
+    if(pubkey)
+        memcpy(peer->remote_pubkey, pubkey, public_key_size);
+    return 1;
 }
 
 

@@ -177,6 +177,7 @@ void addrcoll_process(struct addr_collection *coll)
         if(coll->first->timeout_hook)
             (*coll->first->timeout_hook)(coll->first);
         else
-            inaddritem_remove(coll->first);
+            addritem_remove(coll->first);
     }
 }
+

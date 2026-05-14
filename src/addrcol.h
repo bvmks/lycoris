@@ -55,7 +55,7 @@ void addritem_getaddr(struct addr_item *item,
 /* resets timemark and puts to head of the list */
 void inaddritem_reset(struct addr_item *item);
 
-void inaddritem_remove(struct addr_item *item);
+void addritem_remove(struct addr_item *item);
 
 
 #endif

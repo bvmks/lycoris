@@ -11,20 +11,20 @@ STATIC =
 INCPATH = -I../lib
 CFLAGS = -O0 -Wall -g $(INCPATH) $(CONF) $(STATIC)
 
-
 TARGETS = node
 
 #INSTALLPATH = /usr/local/bin/
 
 NODE_OBJS = node.o fileutils.o message.o ms_rx.o \
 			ms_nodecfg.o ms_sig.o ms_lh.o ms_nodeid.o\
-			addrport.o ms_comm_ctx.o socks.o ms_keyutils.o\
-			ms_txq.o ms_nonce.o ms_peers.o hexdata.o \
-			ms_kndb.o\
+			addrport.o ms_comm_ctx.o socks.o keyutils.o\
+			ms_txq.o ms_peers.o hexdata.o addrcol.o\
+			ms_kndb.o unitable.o\
 			../lib/monocypher/libmonocypher.a \
 			../lib/sue/libsue.a
 
 #MSCTL_OBJS = msctl.o 
+
 
 all:	$(TARGETS)
 
@@ -35,9 +35,8 @@ all:	$(TARGETS)
 	$(CC) $(STATIC) $^ -o $@
 
 
-node: $(NODE_OBJS)
+node:	$(NODE_OBJS)
 
-msctl: $(MSCTL_OBJS)
 
 install:
 	cp -v $(TARGETS) $(INSTALLPATH)

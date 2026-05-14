@@ -4,6 +4,8 @@
 
 #include "ms_txq.h"
 #include "ms_peers.h"
+#include "message.h"
+#include "addrport.h"
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -11,10 +13,6 @@
 
 static void destroy_txitem(struct ms_transmit_item *p)
 {
-    if(p->tmh) {   /* this means it is registered on the selector */
-        sue_sel_remove_timeout(p->the_master->the_selector, p->tmh);
-        free(p->tmh);
-    }
     free(p->buf);
     free(p);
 }
@@ -34,17 +32,18 @@ struct ms_transmit_queue *make_transmit_queue(struct sue_event_selector *s)
     return res;
 }
 
-void ms_txq_enqueue (struct ms_transmit_item* item)
+void txq_enqueue (struct ms_transmit_item* item)
 {
-    struct ms_transmit_queue* txq; 
-
-    txq = item->the_master;
-    if(!txq->qfirst)
-        txq->qfirst = item;
-    else 
+    struct ms_transmit_queue *txq = item->the_master;
+    if(txq->qfirst)
         txq->qlast->next = item;
+    else
+        txq->qfirst = item;
     txq->qlast = item;
     item->next = NULL;
+    if(item->the_peer) {
+        update_peer_last_tx(item->the_peer);
+    }
     txq->count++;
 }
 
@@ -77,7 +76,7 @@ struct ms_transmit_item* make_txitem_4peer(struct ms_transmit_queue* txq,
 {
     struct ms_transmit_item* res;
     res = make_txitem(txq, len, offset);
-    ms_peer_getaddr(peer, &res->ip, &res->port);
+    peer_getaddr(peer, &res->ip, &res->port);
     res->the_peer = peer;
     return res;
 }
@@ -93,50 +92,55 @@ struct ms_transmit_item *make_txitem_4ip(struct ms_transmit_queue* txq,
     return res;
 }
 
-struct ms_transmit_item* 
-fetch_txitem_to_transmit(struct ms_transmit_queue *txq)
+struct ms_transmit_item*
+fetch_item_to_transmit(struct ms_transmit_queue* txq)
 {
-    struct ms_transmit_item* tmp;
-    
-    tmp = txq->qfirst;
-    if(!tmp)
-        return NULL;
+    struct ms_transmit_item *tmp;
+    int mlen;
 
+    tmp = txq->qfirst;
+    if(!tmp) {
+        message(mlv_alert, "[ERROR] ready to send, but nothing to send\n");
+        return NULL;
+    }
     txq->qfirst = tmp->next;
     if(!txq->qfirst)
         txq->qlast = NULL;
-    tmp->next = NULL;
-    txq->count--;
+
+    mlen = tmp->len - tmp->offset;
+    message(mlv_debug2, "[DEBUG] going to send %d bytes to %s\n",
+                    mlen, ipport2a(tmp->ip, tmp->port));
     return tmp;
 }
-
 
 void txq_peer_gone(struct ms_transmit_queue *txq, struct ms_peer *peer)
 {
     struct ms_transmit_item *tmp;
-    /*struct ms_transmit_item **pp;*/
+    struct ms_transmit_item **pp;
+    struct ms_transmit_item *prev = NULL;
 
-    for(tmp = txq->qfirst; tmp; tmp = tmp->next)
-        if(tmp->the_peer == peer)
-            tmp->the_peer = NULL;
-/*
-    pp = &txq->retx_first;
+    pp = &txq->qfirst;
     while(*pp) {
         if((*pp)->the_peer == peer) {
             tmp = *pp;
             *pp = (*pp)->next;
+            if (tmp == txq->qlast) {
+                txq->qlast = prev;
+            }
             tmp->next = NULL;
             destroy_txitem(tmp);
-            if(!txq->retx_first)
-                txq->retx_last = NULL;
+            txq->count--;
         } else {
+            prev = *pp;
             pp = &(*pp)->next;
         }
     }
-*/
+    if (!txq->qfirst) {
+        txq->qlast = NULL;
+    }
 }
 
-void ms_txq_item_sent(struct ms_transmit_item* item)
+void txq_item_sent(struct ms_transmit_item* item)
 {
     destroy_txitem(item);
 }

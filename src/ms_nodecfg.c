@@ -2,24 +2,50 @@
 
 #include "ms_nodecfg.h"
 #include "fileutil.h"
+#include "keyutils.h"
+
+
+int peer_conf_has_ip(const struct peer_conf *pc)
+{
+    return pc->port != 0 && pc->ip != PEER_IP_UNDEF;
+}
+
+int peer_conf_has_id(const struct peer_conf *pc)
+{
+    return !all_zeroes(pc->node_id, node_id_size);
+}
 
 struct ms_node_cfg* make_node_cfg()
 {
-    struct ms_node_cfg* n;
-    n = malloc(sizeof(struct ms_node_cfg));
+    struct ms_node_cfg* p;
+    p = malloc(sizeof(struct ms_node_cfg));
     
-    n->listen_ip = 0;    
-    n->listen_port = 0;    
+    p->listen_ip = ntohl(mscfg_def_ip);
+    p->listen_port = mscfg_def_port;    
 
-    n->kndb_file = NULL;
-    n->keys_dir = NULL;
+    p->kndb_dir = NULL;
+    p->keys_dir = NULL;
+    
+    p->cooldown_timeout = mscfg_def_cooldown_timeout;
+    p->peer_timeout = mscfg_def_peer_timeout;
+    p->keepalive_interval = 120;
+    p->first_peer = NULL;
 
-    n->allow_trust_conn = 0;
+    return p;
+}
 
-    n->sessions_limit = 0;
-    n->session_timeout = 0;
-
-    return n;
+void dispose_node_cfg(struct ms_node_cfg *p)
+{
+    if(p->keys_dir)
+        free(p->keys_dir);
+    if(p->kndb_dir)
+        free(p->kndb_dir);
+    while(p->first_peer) {
+        struct peer_conf *tmp = p->first_peer;
+        p->first_peer = p->first_peer->next;
+        free(tmp);
+    }
+    free(p);
 }
 
 static void settle_keydir(struct ms_node_cfg* cfg)
@@ -27,26 +53,18 @@ static void settle_keydir(struct ms_node_cfg* cfg)
     settle_localpath(&cfg->keys_dir, ".ms/keys");
 }
 
-static void settle_kndb_file(struct ms_node_cfg* cfg)
+static void settle_kndb_dir(struct ms_node_cfg* cfg)
 {
-    settle_localpath(&cfg->kndb_file, ".ms/known.db");
+    settle_localpath(&cfg->kndb_dir, ".ms/known.db");
 }
 
 struct ms_node_cfg* make_node_def_cfg()
 {
     struct ms_node_cfg* n;
     n = make_node_cfg();
-    
-    n->listen_ip = mscfg_def_ip;
-    n->listen_port = mscfg_def_port;
-
-    n->allow_trust_conn = mscfg_def_truct_conn;
-
-    n->session_timeout = mscfg_def_sess_timeout;
-    n->sessions_limit = mscfg_def_sess_limit;
 
     settle_keydir(n);
-    settle_kndb_file(n);
+    settle_kndb_dir(n);
     return n;
 }
 

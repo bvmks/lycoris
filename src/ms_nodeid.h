@@ -5,11 +5,9 @@
 
 struct ms_nodeid_file {
     unsigned char node_id[node_id_size];
-    unsigned char secret[node_secret_size];
-    unsigned char master_privat_key[secret_key_size];
+    unsigned char master_secret_key[secret_key_size];
     unsigned char master_public_key[public_key_size];
 
-    unsigned char cookish[cookish_size];
 };
 
 

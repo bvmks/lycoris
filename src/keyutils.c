@@ -3,7 +3,35 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "ms_keyutils.h"
+void place_timemark(int tm, unsigned char p[4])
+{
+    p[0] = (tm >> 24) & 0xff;
+    p[1] = (tm >> 16) & 0xff;
+    p[2] = (tm >> 8) & 0xff;
+    p[3] = tm & 0xff;
+}
+
+void increment_buf(unsigned char *buf, int len)
+{
+    int i = 0;
+    (*buf)++;
+    while(buf[i] == 0 && i < len-1) {
+        i++;
+        buf[i]++;
+    }
+}
+
+int all_zeroes(const unsigned char *buf, int len)
+{
+    int i;
+    int z = 0, nz = 0;
+    for(i = 0; i < len; i++)
+        if(buf[i])
+            nz++;
+        else
+            z++;
+    return z == len && nz < len;
+}
 
 int get_random(void *buf, int len)
 {
@@ -86,7 +114,6 @@ void fill_noise(unsigned char *mem, int len)
     if(partlen < len)
         fill_noise(mem + partlen, len - partlen);
 }
-
 
 int rand_from_range(int first, int last)
 {

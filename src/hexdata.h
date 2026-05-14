@@ -3,13 +3,12 @@
 
 char hexdigit(unsigned int n);
 void hexbyte2str(char str[3], int bt);
-void hexdata2str(char *str, const unsigned char *data, int datalen);
 
-    /* returns internal static buffer, 4096 bytes in size; if the
-       buffer's length is insufficient, the hex data is truncated
-       accordingly (to 4095 chars, which is odd, heh)
-     */
+void hexdata2str(char *str, const unsigned char *data, int datalen);
 const char *hexdata2a(const unsigned char *data, int datalen);
+
+
+int hexstr2data(unsigned char *data, int datasize, const char *str);
 
 
 

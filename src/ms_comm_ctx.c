@@ -1,28 +1,49 @@
-#include "../lib/monocypher/monocypher.h"
-#include "ms_comm_ctx.h"
-#include "ms_keyutils.h"
+#include <stdlib.h>
 #include <string.h>
 
-int comctx_init(struct ms_crypto_comm_ctx *ctx)
+#include <monocypher/monocypher.h>
+
+#include "ms_comm_ctx.h"
+#include "ms_nodeid.h"
+#include "keyutils.h"
+#include "fileutil.h"
+
+int comctx_init(struct crypto_comm_ctx *ctx)
 {
     int res;
-
-    memset(ctx->encrypt_key, 0, cipher_key_size);
-    memset(ctx->decrypt_key, 0, cipher_key_size);
-    memset(ctx->remote_kex_public, 0, cipher_key_size);
 
     res = get_random(&ctx->kex_secret, sizeof(ctx->kex_secret));
     if(!res)
         return 0;
+    res = get_random(&ctx->token_key, sizeof(ctx->token_key));
+    if(!res)
+        return 0;
 
     crypto_x25519_public_key(ctx->kex_public, ctx->kex_secret);
-    
-    ms_nonce_init(&ctx->nonce);
+
+    ctx->identity = NULL;
 
     return 1;
 }
 
-void derive_keys(const unsigned char *local_secret,
+int comctx_init_node(struct crypto_comm_ctx* ctx, const char* dir)
+{
+    int res;
+    char* idfile;
+    ctx->identity = malloc(sizeof(*ctx->identity));
+
+    idfile = concat_path(dir, "node.id");
+
+    res = load_nodeid_file(ctx->identity, idfile);
+    free(idfile);
+    if(res) {
+        dispose_nodeid(ctx->identity);
+        return 0;
+    }
+    return 1;
+}
+
+void derive_cipher_keys(const unsigned char *local_secret,
                  const unsigned char *local_pub_key,
                  const unsigned char *remote_pub_key,
                  unsigned char *encrypt_key,

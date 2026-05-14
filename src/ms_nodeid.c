@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "ms_nodeid.h"
-#include "ms_nodecfg.h"
 #include "message.h"
 #include "fileutil.h"
 #include "../lib/monocypher/monocypher.h"
@@ -22,12 +24,25 @@ struct ms_nodeid_file* make_nodeid()
     return ni;
 }
 
-int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
+int load_nodeid_file(struct ms_nodeid_file* idf, const char* fname)
 {
     FILE* f;
+    struct stat st;
+    unsigned char secret[node_secret_size];
     size_t r;
+    int res;
 
-    nodeid_init(ni);
+    res = stat(fname, &st);
+    if (res != 0) {
+        message_perror(mlv_alert, "load_nodeid_file", "unable to find id file");
+        return 1;
+    }
+
+    if(st.st_size != node_secret_size) {
+        message(mlv_alert, "[FATAL] invalid id file\n");
+        message(mlv_alert, "size: %llu\n", st.st_size);
+        return 1;
+    }
 
     f = fopen(fname, "rb");
     if(!f) {
@@ -35,45 +50,27 @@ int load_nodeid_file(struct ms_nodeid_file* ni, const char* fname)
         return 1;
     }
 
-    r = fread(ni->secret, 1, node_secret_size, f);
-    fclose(f);
-
+    r = fread(secret, 1, node_secret_size, f);
     if (r != node_secret_size) {
-        crypto_wipe(ni->secret, sizeof(ni->secret));
-        message_perror(mlv_alert, 
-                       "load_nodeid_file", "seed file is too short or corrupted");
-        nodeid_init(ni);
+        crypto_wipe(secret, sizeof(secret));
+        message(mlv_alert, "[FATAL] seed is too short");
         return 1;
     }
 
-    crypto_eddsa_key_pair(ni->master_privat_key, 
-                          ni->master_public_key,
-                          ni->secret);
+    fclose(f);
 
-    memcpy(ni->node_id, 
-           ni->master_public_key + public_key_size - node_id_size,
+    crypto_eddsa_key_pair(idf->master_secret_key, 
+                          idf->master_public_key,
+                          secret);
+
+    memcpy(idf->node_id, 
+           idf->master_public_key + public_key_size - node_id_size,
            node_id_size);
     
-    crypto_wipe(ni->secret, node_secret_size);
+    crypto_wipe(secret, node_secret_size);
     return 0;
 }
 
-struct ms_nodeid_file* load_node_id(struct ms_node_cfg *cfg)
-{
-    struct ms_nodeid_file* id;
-    char* keyfile;
-    int lfail;
-
-    id = malloc(sizeof(*id));
-    keyfile = concat_path(cfg->keys_dir, "id");
-    lfail = load_nodeid_file(id, keyfile);
-    free(keyfile);
-    if(lfail) {
-        dispose_nodeid(id);
-        return NULL;
-    }
-    return id;
-}
 
 void dispose_nodeid(struct ms_nodeid_file* ni)
 {
