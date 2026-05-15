@@ -5,7 +5,7 @@
 #include "ms_rx.h"
 
 #include "ms_sig.h"
-#include "message.h"
+#include "log.h"
 
 struct ms_loophook_target {
     struct sue_loop_hook mh;
@@ -17,7 +17,7 @@ static void main_hook(struct sue_loop_hook *h)
 {
     struct ms_udp_receiver *r = h->userdata;
     r->fdh = r->fdh; /* to ease compiler warning */
-    message(mlv_debug2, "[DEBUG] main_hook called\n");
+    log_msg(llv_debug2, "main_hook called");
 }
 
 struct ms_loophook_target* prepare_loophooks(struct sue_event_selector* s,

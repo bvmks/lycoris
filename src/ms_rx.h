@@ -30,6 +30,8 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
 int start_udp_receiver(struct ms_udp_receiver* rx);
 void dispose_udp_receiver(struct ms_udp_receiver* rx);
 
+void udp_receiver_report(struct ms_udp_receiver *rx);
+
 int do_we_know(struct ms_udp_receiver* rx, unsigned char id[node_id_size]);
 void init_conn_to_known(struct ms_udp_receiver* rx, unsigned char id[node_id_size]);
 int can_send_to_known(struct ms_udp_receiver* rx, unsigned char id[node_id_size]);

@@ -19,7 +19,7 @@ NODE_OBJS = node.o fileutils.o message.o ms_rx.o \
 			ms_nodecfg.o ms_sig.o ms_lh.o ms_nodeid.o\
 			addrport.o ms_comm_ctx.o socks.o keyutils.o\
 			ms_txq.o ms_peers.o hexdata.o addrcol.o\
-			ms_kndb.o unitable.o\
+			ms_kndb.o unitable.o log.o rep.o\
 			../lib/monocypher/libmonocypher.a \
 			../lib/sue/libsue.a
 
@@ -48,9 +48,8 @@ install:
 ../lib/sue/libsue.a:
 	cd ../lib/sue && $(MAKE) CC="$(CC)"
 
-#_version.h: Version
-	# echo '#define MS_VERSION "'`head -1 Version`'"' > $@
-	# echo '#define MS_VERSIONID '`tail -1 Version` >> $@
+_version.h: Version
+	 echo '#define MS_VERSION "'`head -1 Version`'"' > $@
 
 deps.mk:	$(wildcard *.c) _version.h
 	$(CC) -MM $(INCPATH) $(wildcard *.c) > $@

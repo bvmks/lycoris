@@ -7,6 +7,7 @@
 struct crypto_comm_ctx {
     unsigned char kex_secret[kex_secret_size];
     unsigned char kex_public[kex_public_size];
+    unsigned char nonce_counter[cipher_nonce_used];
     unsigned char token_key[token_key_size];
     struct ms_nodeid_file* identity;
 };
@@ -17,6 +18,8 @@ struct crypto_comm_ctx {
 int comctx_init(struct crypto_comm_ctx* ctx);
 
 int comctx_init_node(struct crypto_comm_ctx* ctx, const char* dir);
+
+void comctx_fill_nonce(struct crypto_comm_ctx* ctx, unsigned char* buf);
 
 void derive_cipher_keys(const unsigned char *local_secret,
                         const unsigned char *local_pub_key,

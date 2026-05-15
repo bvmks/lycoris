@@ -1,6 +1,8 @@
 #ifndef _ms_peerION_H
 #define _ms_peerION_H
 
+#include "rep.h"
+
 struct ms_peer;
 struct ms_peer_collection;
 struct peercoll_item;
@@ -67,7 +69,6 @@ const char* peer_description(const struct ms_peer* peer);
 
 void peers_timer_hook(struct ms_peer_collection* col);
 
-void peer_fill_nonce(struct ms_peer* peer, unsigned char* buf);
 int peer_check_update_nonce(struct ms_peer* peer, const unsigned char* nonce,
                      const char* caller_name);
 
@@ -77,6 +78,8 @@ struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* rx,
 
 struct ms_peer* get_peer_record(struct ms_peer_collection* col,
                                 unsigned int ip, unsigned short port, int add);
+
+void peers_report(struct ms_peer_collection *col, report_callback cb, void *ud);
 
 void update_peer_last_rx(struct ms_peer* peer);
 void update_peer_last_tx(struct ms_peer* peer);

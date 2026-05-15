@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <string.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -12,7 +11,7 @@
 
 
 #include "fileutil.h"
-#include "message.h"
+#include "log.h"
 #include "ms_rx.h"
 #include "ms_nodecfg.h"
 #include "ms_peers.h"
@@ -20,8 +19,9 @@
 #include "ms_sig.h"
 #include "ms_lh.h"
 #include "hexdata.h"
-#include "addrport.h"
 #include "ms_rx.h"
+
+#include "_version.h"
 
 enum {
     def_port = 24880,
@@ -69,47 +69,54 @@ int main(int argc, char** argv)
         use_port = def_port2;
     else
         use_port = def_port;
-    
-    ensure_wdir();
-    message_set_verbosity(mlv_info);
+
+    setup_stderr_log(llv_debug | llv_private);
+
+    log_msg(llv_alert, "starting ms node " MS_VERSION);
 
     sue_alloc_init_default();
-
     sue_sel_init(&selector);
 
     /*
      * config "hadcoded" just for now...
      * i will make (steal) text parser for cfg loading later (maybe)
     */
+    ensure_wdir();
     node_cfg = make_node_def_cfg();
     node_cfg->listen_port = use_port;
 
     receiver = make_udp_receiver(&selector, node_cfg);
     if(!receiver) {
-        message(mlv_alert, "[FATAL] failed to construct udp_receiver\n");
+        log_msg(llv_alert, "failed to construct udp_receiver");
         return -1;
     }
-    message(mlv_debug, "[DEBUG] udp_receiver initialized\n");
+
+    log_msg(llv_alert, "udp_receiver initialized successfully");
+    log_msg_bald(llv_alert, "our id:     %s", 
+                 hexdata2a(receiver->comctx.identity->node_id, node_id_size));
+    log_msg_bald(llv_alert, "our pubkey: %s",
+                 hexdata2a(receiver->comctx.identity->master_public_key, public_key_size));
+
 
     sigtarget = prepare_sig_handlers(&selector, receiver);
-    message(mlv_debug, "[DEBUG] signal handlers initialized\n");
+    log_msg(llv_debug, "signal handlers initialized");
 
     lhtarget = prepare_loophooks(&selector, receiver);
-    message(mlv_debug, "[DEBUG] loophooks initialized\n");
+    log_msg(llv_debug, "loophooks initialized");
 
     if(!start_udp_receiver(receiver))
     {
-        message(mlv_alert, "[FATAL] failed to start udp_receiver\n");
+        log_msg(llv_alert, "failed to start udp_receiver");
         return -1;
     }
-    message(mlv_debug, "[DEBUG] udp_receiver started\n");
+    log_msg(llv_alert, "udp_receiver started successfully");
 
 
-    message(mlv_debug, "[DEBUG] entering main loop...\n");
+    log_msg(llv_alert, "entering main loop");
     res = sue_sel_go(&selector);
     if(res == -1)
-        message(mlv_normal, "main loop reported error\n");
-    message(mlv_debug, "[DEBUG] exited main loop\n");
+        log_msg(llv_alert, "main loop reported error");
+    log_msg(llv_alert, "exited main loop");
 
     free_targets(sigtarget, lhtarget);
     

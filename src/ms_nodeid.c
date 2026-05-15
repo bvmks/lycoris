@@ -6,8 +6,7 @@
 #include <fcntl.h>
 
 #include "ms_nodeid.h"
-#include "message.h"
-#include "fileutil.h"
+#include "log.h"
 #include "../lib/monocypher/monocypher.h"
 
 
@@ -34,26 +33,26 @@ int load_nodeid_file(struct ms_nodeid_file* idf, const char* fname)
 
     res = stat(fname, &st);
     if (res != 0) {
-        message_perror(mlv_alert, "load_nodeid_file", "unable to find id file");
+        log_perror(llv_alert, "load_nodeid_file", "unable to find id file");
         return 1;
     }
 
     if(st.st_size != node_secret_size) {
-        message(mlv_alert, "[FATAL] invalid id file\n");
-        message(mlv_alert, "size: %llu\n", st.st_size);
+        log_msg(llv_alert, "invalid id file");
+        log_msg_bald(llv_alert, "size: %llu", st.st_size);
         return 1;
     }
 
     f = fopen(fname, "rb");
     if(!f) {
-        message_perror(mlv_alert, "load_nodeid_file", "unable to open id file");
+        log_perror(llv_alert, "load_nodeid_file", "unable to open id file");
         return 1;
     }
 
     r = fread(secret, 1, node_secret_size, f);
     if (r != node_secret_size) {
         crypto_wipe(secret, sizeof(secret));
-        message(mlv_alert, "[FATAL] seed is too short");
+        log_msg(llv_alert, "[FATAL] seed is too short");
         return 1;
     }
 

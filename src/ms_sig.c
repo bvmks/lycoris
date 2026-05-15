@@ -4,11 +4,12 @@
 #include <sue/sue_base.h>
 
 #include "ms_rx.h"
-#include "message.h"
+#include "log.h"
 
 #include "ms_sig.h"
 
 struct ms_signal_target {
+    struct sue_signal_handler sigusrh;
     struct sue_signal_handler siginth;
     struct sue_signal_handler sigquith;
     struct sue_signal_handler sigtermh;
@@ -17,10 +18,17 @@ struct ms_signal_target {
     struct sue_event_selector *the_selector;
 };
 
+
+static void sigusr1_hdl(struct sue_signal_handler *h, int cnt)
+{
+    struct ms_signal_target *st = h->userdata;
+    udp_receiver_report(st->rx);
+}
+
 static void quit_on_sig(struct sue_signal_handler *h, int cnt)
 {
     struct ms_signal_target *t = h->userdata;
-    message(mlv_debug2, "[DEBUG] quit_on_sig called\n");
+    log_msg(llv_debug2, "quit_on_sig called");
     sue_sel_break(t->the_selector); 
 }
 
@@ -30,10 +38,13 @@ struct ms_signal_target* prepare_sig_handlers(struct sue_event_selector* s,
     struct ms_signal_target *t;
     t = malloc(sizeof(*t));
 
+    t->sigusrh.signo = SIGUSR1;
+    t->sigusrh.userdata = t;
+    t->sigusrh.handle_signal = sigusr1_hdl;
 
-    t->siginth.signo = SIGKILL;
-    t->siginth.userdata = t;
-    t->siginth.handle_signal = quit_on_sig;
+    t->sigkillh.signo = SIGKILL;
+    t->sigkillh.userdata = t;
+    t->sigkillh.handle_signal = quit_on_sig;
 
     t->siginth.signo = SIGINT;
     t->siginth.userdata = t;
@@ -50,6 +61,8 @@ struct ms_signal_target* prepare_sig_handlers(struct sue_event_selector* s,
     t->rx = rx;
     t->the_selector = s;
 
+    sue_sel_register_signal(s, &t->sigusrh);
+    sue_sel_register_signal(s, &t->sigkillh);
     sue_sel_register_signal(s, &t->siginth);
     sue_sel_register_signal(s, &t->sigquith);
     sue_sel_register_signal(s, &t->sigtermh);

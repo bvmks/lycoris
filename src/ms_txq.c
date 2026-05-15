@@ -4,7 +4,7 @@
 
 #include "ms_txq.h"
 #include "ms_peers.h"
-#include "message.h"
+#include "log.h"
 #include "addrport.h"
 
 #ifndef NULL
@@ -100,7 +100,7 @@ fetch_item_to_transmit(struct ms_transmit_queue* txq)
 
     tmp = txq->qfirst;
     if(!tmp) {
-        message(mlv_alert, "[ERROR] ready to send, but nothing to send\n");
+        log_msg(llv_alert, "ready to send, but nothing to send");
         return NULL;
     }
     txq->qfirst = tmp->next;
@@ -108,7 +108,7 @@ fetch_item_to_transmit(struct ms_transmit_queue* txq)
         txq->qlast = NULL;
 
     mlen = tmp->len - tmp->offset;
-    message(mlv_debug2, "[DEBUG] going to send %d bytes to %s\n",
+    log_msg(llv_debug2, "going to send %d bytes to %s",
                     mlen, ipport2a(tmp->ip, tmp->port));
     return tmp;
 }

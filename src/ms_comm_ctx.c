@@ -19,6 +19,10 @@ int comctx_init(struct crypto_comm_ctx *ctx)
     if(!res)
         return 0;
 
+
+    fill_noise(ctx->nonce_counter, sizeof(ctx->nonce_counter));
+    ctx->nonce_counter[sizeof(ctx->nonce_counter)-1] = 1;
+
     crypto_x25519_public_key(ctx->kex_public, ctx->kex_secret);
 
     ctx->identity = NULL;
@@ -78,6 +82,12 @@ void set_plain_dgram_head(unsigned char *dgram, int cmd)
     uc = dgram[0] & 0x0f;
     uc |= (uc << 4) & 0xf0;
     dgram[1] = cmd ^ uc;
+}
+
+void comctx_fill_nonce(struct crypto_comm_ctx* ctx, unsigned char* buf)
+{
+    increment_buf(ctx->nonce_counter, sizeof(ctx->nonce_counter));
+    memcpy(buf, ctx->nonce_counter, sizeof(ctx->nonce_counter));
 }
 
 int get_plain_dgram_cmd(const unsigned char *dgram)

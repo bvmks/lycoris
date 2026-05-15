@@ -8,7 +8,7 @@
 #include "ms_comm_ctx.h"
 #include "addrcol.h"
 #include "addrport.h"
-#include "message.h"
+#include "log.h"
 #include "hexdata.h"
 #include "ms_nodecfg.h"
 #include "keyutils.h"
@@ -32,7 +32,6 @@ struct ms_peer {
 
     unsigned char node_id[node_id_size];
     unsigned char remote_pubkey[public_key_size];/* remote sign key*/
-    unsigned char nonce_counter[8];
     unsigned char last_nonce[8];
 
     unsigned char remote_kex_pub[kex_public_size];
@@ -88,7 +87,7 @@ void dbug_print_all_peers(struct ms_peer_collection* col)
         for(;node;node = node->next) {
             struct addr_item* item = node->userdata;
             struct ms_peer* peer = item->userdata;
-            message(mlv_debug, "[DEBUG] peer in collection %s\n",
+            log_msg(llv_debug, "peer in collection %s",
                     ipport2a(peer->ip, peer->port));
         }
     }
@@ -104,9 +103,7 @@ void peers_timer_hook(struct ms_peer_collection* col)
 
     tm = time(NULL);
 
-    message(mlv_debug2, "[DEBUG] peers_timer_hook called, tm=%lld\n", tm);
-    message(mlv_debug2, "        peer_timeout       = %d\n", col->the_conf->peer_timeout);
-    message(mlv_debug2, "        keepalive_interval = %d\n", col->the_conf->keepalive_interval);
+    log_msg(llv_debug2, "peers_timer_hook called, tm=%lld", tm);
 
     res = addrcoll_update(&col->cooldown, tm);
     if(res)
@@ -136,7 +133,7 @@ void peers_timer_hook(struct ms_peer_collection* col)
         if(!addri->timeout_hook) continue;
         peer_get_idle(peer, &since_last_rx, &since_last_tx);
         peer_get_addr(peer, &ip, &port);
-        message(mlv_debug2, 
+        log_msg(llv_debug2, 
                 "        peer %s since_last_rx/tx %d/%d (st: %s)\n",
                 ipport2a(ip, port), 
                 since_last_rx, since_last_tx,
@@ -154,32 +151,38 @@ unsigned long long timemark_sec(const struct ms_peer_collection* col)
     return (col->peers.starttime + (long long)col->peers.curtime);
 }
 
-void peer_fill_nonce(struct ms_peer* peer, unsigned char* buf)
-{
-    increment_buf(peer->nonce_counter, sizeof(peer->nonce_counter));
-    memcpy(buf, peer->nonce_counter, sizeof(peer->nonce_counter));
-}
 
 int peer_check_update_nonce(struct ms_peer* peer, const unsigned char* nonce,
                      const char* caller_name)
 {
     unsigned long long known_nonce, new_nonce;
+    char noncestr[16];
 
     known_nonce = u64_from_little_endian(peer->last_nonce);
     new_nonce = u64_from_little_endian(nonce);
+
+    hexdata2str(noncestr, nonce, 8);
+    if(nonce[7] != 0x01) {
+        log_msg(llv_alert,
+                "%s: trying to set nonce %s for %s but nonce[0] != 0x01 !!!",
+                caller_name,
+                noncestr,
+                peer_description(peer));
+        return 0;
+    }
     
     if(known_nonce == 0 || new_nonce > known_nonce) {
         memcpy(peer->last_nonce, nonce, sizeof(peer->last_nonce));
-        message(mlv_debug, "[DEBUG] set known_nonce %d for %s (caller %s)\n",
-                new_nonce, peer_description(peer), caller_name);
+        log_msg(llv_debug, "%s: setting known_nonce %s for %s",
+                caller_name, noncestr, peer_description(peer));
         return 1;
     }
 
     if(known_nonce == new_nonce ||
         (new_nonce < known_nonce && known_nonce-new_nonce > nonce_max_gap)
     ) {
-        message(mlv_debug,
-            "[DEBUG] %s: nonce check failed for %s (known %llx, new %llx)\n",
+        log_msg(llv_debug,
+            "%s: nonce check failed for %s (known %llx, new %llx)",
             caller_name, peer_description(peer), known_nonce, new_nonce);
         return 0;
     }
@@ -197,7 +200,7 @@ static void mspeer_timeout_hook(struct addr_item* item)
     unsigned int ip;
     unsigned short port;
     addritem_getaddr(item, &ip, &port);
-    message(mlv_info, "[INFO] peer %s timed out\n", ipport2a(ip, port));
+    log_msg(llv_info, "peer %s timed out", ipport2a(ip, port));
     addritem_remove(item);
 }
 
@@ -205,7 +208,7 @@ static void mspeer_destruction_hook(struct addr_item* item)
 {
     if(item->userdata) {
         struct ms_peer *p = item->userdata;
-        message(mlv_debug, "[DEBUG] removing peer %s\n",
+        log_msg(llv_debug, "removing peer %s",
                 peer_description(p));
         ms_rx_peer_gone(p->the_master->the_rx, p);
         free(item->userdata);
@@ -213,7 +216,7 @@ static void mspeer_destruction_hook(struct addr_item* item)
         unsigned int ip;
         unsigned short port;
         addritem_getaddr(item, &ip, &port);
-        message(mlv_debug, "[DEBUG] removing peer %s (?!)\n",
+        log_msg(llv_debug, "removing peer %s (?!)",
                 ipport2a(ip, port));
     }
 }
@@ -242,9 +245,11 @@ static void peer_init(struct ms_peer_collection* col, struct addr_item* item)
     peer->token = 0;
     peer->init_assoc = 0;
     peer->assoc_status = as_none;
+
     item->userdata = peer;
     item->timeout_hook = mspeer_timeout_hook;
     item->destruction_hook = mspeer_destruction_hook;
+
 }
 
 int peer_ever_had_assoc(const struct ms_peer* peer)
@@ -446,9 +451,9 @@ int peer_set_kex_public(struct ms_peer_collection* col, struct ms_peer* peer,
                        col->the_comctx->kex_public, peer->remote_kex_pub,
                        peer->encrypt_key, peer->decrypt_key);
 
-    memset(peer->nonce_counter, 0, sizeof(peer->nonce_counter));
+    memset(peer->last_nonce, 0, sizeof(peer->last_nonce));
 
-    message(mlv_debug, "[DEBUG] set kex pub %s for %s\n",
+    log_msg(llv_debug, "set kex pub %s for %s",
             hexdata2a(peer->remote_kex_pub, kex_public_size),
             ipport2a(peer->ip, peer->port));
     return 1;
@@ -518,7 +523,7 @@ struct ms_peer* get_peer_record(struct ms_peer_collection* col,
         return NULL;
     if(!p->userdata) {    
         peer_init(col, p);
-        message(mlv_info, "[INFO] new peer %s\n", ipport2a(ip, port));
+        log_msg(llv_info, "new peer %s", ipport2a(ip, port));
     }
     return p->userdata;
 }
@@ -536,10 +541,8 @@ int peer_set_identity(struct ms_peer* peer,
     unsigned int ip = peer->ip;
     unsigned short port = peer->port;
 
-    message(mlv_debug,
-            "[DEBUG] peer_set_identity called\n"
-            "        for %s\n"
-            "        to set %s\n",
+    log_msg(llv_debug,
+            "peer_set_identity called for %s to set %s",
             peer_description(peer), hexdata2a(node_id, node_id_size));
 
     if(peer_has_id(peer) &&
@@ -549,8 +552,8 @@ int peer_set_identity(struct ms_peer* peer,
         char cur_nid_str[node_id_size * 2 + 1];
         hexdata2str(nid_str, node_id, node_id_size);
         hexdata2str(cur_nid_str, peer->node_id, node_id_size);
-        message(mlv_normal,
-            "[INFO] for peer %s: refusing to replace %s with %s\n",
+        log_msg(llv_normal,
+            "for peer %s: refusing to replace %s with %s",
             ipport2a(ip, port), cur_nid_str, nid_str);
         return 0;
     }
@@ -571,8 +574,8 @@ int peer_set_identity(struct ms_peer* peer,
             char conf_nid_str[node_id_size * 2 + 1];
             hexdata2str(nid_str, node_id, node_id_size);
             hexdata2str(conf_nid_str, conf->node_id, node_id_size);
-            message(mlv_normal,
-                "[INFO] refusing assoc with %s: %s mismatches our config %s",
+            log_msg(llv_normal,
+                "refusing assoc with %s: %s mismatches our config %s",
                 ipport2a(ip, port), nid_str, conf_nid_str);
             return 0;
         }
@@ -590,4 +593,42 @@ int peer_set_identity(struct ms_peer* peer,
     return 1;
 }
 
+static const char *decimal2a(unsigned int n)
+{
+    static char res[16];
+    char *p = res + (sizeof(res)-1);
+
+    if(n == 0)
+        return "0";
+
+    *p = 0;
+    while(n > 0) {
+        p--;
+        *p = '0' + n % 10;
+        n /= 10;
+    }
+
+    return p;
+}
+
+static void
+single_peer_report(struct ms_peer *peer, long t, report_callback cb, void *ud)
+{
+    cb(ud, "[%s] %s", t == -1 ? "-" : decimal2a(t), peer_description(peer));
+}
+
+void peers_report(struct ms_peer_collection *col, report_callback f, void *ud)
+{
+    struct peercoll_item *p;
+    struct addr_item *ia;
+
+    for(p = col->permpeer_first; p; p = p->next) {
+        struct ms_peer *fp = p->peer;
+        single_peer_report(fp, -1, f, ud);
+    }
+    for(ia = col->peers.first; ia; ia = ia->next) {
+        struct ms_peer *fp = ia->userdata;
+        single_peer_report(fp, col->peers.curtime - ia->timemark, f, ud);
+    }
+}
 
