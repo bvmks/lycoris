@@ -67,5 +67,6 @@ struct ms_signal_target* prepare_sig_handlers(struct sue_event_selector* s,
     sue_sel_register_signal(s, &t->sigquith);
     sue_sel_register_signal(s, &t->sigtermh);
 
+    log_msg(llv_debug, "signal handlers initialized");
     return t;
 }

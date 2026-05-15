@@ -40,7 +40,7 @@ int setup_file_log(int mode, const char *filename)
         return 1;
     log_file = fopen(filename, "a");
     if(!log_file) {
-        log_perror(llv_alert, "servlog", filename);
+        log_perror(llv_alert, "setup_file_log", filename);
         return 0;
     }
     file_log_mode = mode;

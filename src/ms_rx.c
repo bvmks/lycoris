@@ -884,7 +884,7 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
     }
 
     log_msg(llv_normal, 
-            " association with %s established",
+            "association with %s established",
             peer_description(peer));
 
     update_peer_last_rx(peer);
@@ -1209,6 +1209,7 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
 
     rx->tmoh.userdata = rx;
     rx->tmoh.handle_timeout = &the_timeout_hdl;
+
     rx->the_selector = s;
     rx->the_cfg = cfg;
 
@@ -1238,6 +1239,15 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
     #endif
 
 
+    log_msg(llv_debug, "udp_receiver initialized", 
+                 hexdata2a(rx->comctx.identity->node_id, node_id_size));
+    log_msg_bald(llv_debug, "node id:      %s", 
+                 hexdata2a(rx->comctx.identity->node_id, node_id_size));
+    log_msg_bald(llv_debug, "node pub key: %s",
+                 hexdata2a(rx->comctx.identity->master_public_key, public_key_size));
+    log_msg_bald(llv_debug, "kex pub key:  %s",
+                 hexdata2a(rx->comctx.kex_public, kex_public_size));
+
     return rx;
 }
 
@@ -1252,17 +1262,28 @@ int load_node_cfg(struct ms_udp_receiver* rx, const char* fname)
 
 int start_udp_receiver(struct ms_udp_receiver *rx)
 {
-    int sfd = make_sock(SOCK_DGRAM, 
-                        rx->the_cfg->listen_ip, 
-                        rx->the_cfg->listen_port);
-    if(sfd == -1){
-        log_msg(llv_alert, "unable to create socket");
+
+    struct sockaddr_in own_addr;
+    int sockfd, ok;
+
+    own_addr.sin_family = AF_INET;
+    own_addr.sin_port = htons(rx->the_cfg->listen_port);
+    own_addr.sin_addr.s_addr = htonl(rx->the_cfg->listen_ip);
+    
+    sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sockfd == -1) {
+        log_perror(llv_alert, "start_udp_receiver", "socket");
+        return 0;
+    }
+    ok = bind(sockfd, (struct sockaddr*)&own_addr, sizeof(own_addr));
+    if(ok == -1) {
+        log_perror(llv_alert, "start_udp_receiver", "bind");
         return 0;
     }
 
     /* success */
 
-    rx->fdh.fd = sfd;
+    rx->fdh.fd = sockfd;
     rx->fdh.want_read = 1;
     sue_sel_register_fd(rx->the_selector, &rx->fdh);
 

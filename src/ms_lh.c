@@ -34,5 +34,6 @@ struct ms_loophook_target* prepare_loophooks(struct sue_event_selector* s,
     t->mh.loop_hook = &main_hook;
 
     sue_sel_register_loop_hook(s, &t->mh);
+    log_msg(llv_debug, "loophooks initialized");
     return t;
 }

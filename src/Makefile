@@ -11,11 +11,11 @@ STATIC =
 INCPATH = -I../lib
 CFLAGS = -O0 -Wall -g $(INCPATH) $(CONF) $(STATIC)
 
-TARGETS = node
+TARGETS = msnode
 
 #INSTALLPATH = /usr/local/bin/
 
-NODE_OBJS = node.o fileutils.o message.o ms_rx.o \
+NODE_OBJS = msnode.o fileutils.o message.o ms_rx.o \
 			ms_nodecfg.o ms_sig.o ms_lh.o ms_nodeid.o\
 			addrport.o ms_comm_ctx.o socks.o keyutils.o\
 			ms_txq.o ms_peers.o hexdata.o addrcol.o\
@@ -35,7 +35,7 @@ all:	$(TARGETS)
 	$(CC) $(STATIC) $^ -o $@
 
 
-node:	$(NODE_OBJS)
+msnode:	$(NODE_OBJS)
 
 
 install:

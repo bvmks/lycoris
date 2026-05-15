@@ -614,7 +614,10 @@ static const char *decimal2a(unsigned int n)
 static void
 single_peer_report(struct ms_peer *peer, long t, report_callback cb, void *ud)
 {
-    cb(ud, "[%s] %s", t == -1 ? "-" : decimal2a(t), peer_description(peer));
+    cb(ud, "[%s] %s (%s)", 
+       t == -1 ? "-" : decimal2a(t),
+       peer_description(peer),
+       assoc_status_str(peer->assoc_status));
 }
 
 void peers_report(struct ms_peer_collection *col, report_callback f, void *ud)
