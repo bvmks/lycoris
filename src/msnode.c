@@ -184,7 +184,7 @@ process_cmdline(int argc, char **argv, struct cmdline_args *args)
     }
 
     if(args->log_stderr || args->log_stderr_only) {
-        setup_stderr_log(args->verbosity);
+        setup_stderr_log(args->verbosity | llv_private);
     }
 
     if(!args->config_file)

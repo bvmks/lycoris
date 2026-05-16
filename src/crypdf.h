@@ -6,7 +6,7 @@ enum {
     public_key_size = 32,
     
     token_key_size = 32,
-    token_size = sizeof(unsigned long long),
+    token_size = 8,
     token_lifetime = 30, /* seconds */
 
     timemark_gap = 10, /* seconds */
@@ -17,6 +17,9 @@ enum {
     cipher_key_size = 32,
 
     sign_size = 64,
+
+    timemark_size = 8,
+    cookie_size = 8,
 
     cipher_nonce_total = 24,
     cipher_nonce_used = 8,

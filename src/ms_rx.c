@@ -11,7 +11,6 @@
 #include "keyutils.h"
 #include "ms_comm_ctx.h"
 #include "ms_kndb.h"
-#include "socks.h"
 
 #include "addrport.h"
 #include "log.h"
@@ -26,16 +25,26 @@ enum {
 
     padded_msg_size          = 148,
 
-    timestamp_size           = 8,
-
-
     echo_req_reserved        = 4,
     echo_reply_reserved      = 4,
+
     echo_req_payload_size    = 12,
     echo_reply_payload_size  = 20,
 
-    assoc_req_payload_size   = 66,
-    assoc_fini_payload_size  = 26,
+    assoc_req_payload_size   =   token_size 
+                               + node_id_size
+                               + kex_public_size 
+                               + timemark_size 
+                               + cookie_size,
+
+    assoc_fini_payload_size  =   node_id_size
+                               + timemark_size
+                               + cookie_size,
+
+    change_key_payload_size  =   kex_public_size 
+                               + 2*cipher_nonce_used
+                               + timemark_size
+
 };
 
 
@@ -151,7 +160,7 @@ static void send_plaintext_148(struct ms_udp_receiver* rx,
 {
     struct ms_transmit_item *msg;
 
-    if(payload_len > 146) {
+    if(payload_len > padded_msg_size - 2) {
         log_msg(llv_alert,
                 "send_plaintext_148: payload too long (%d)",
                 payload_len);
@@ -191,7 +200,7 @@ static void send_echo_reply(struct ms_udp_receiver* rx, unsigned int ip, unsigne
     bufp = buf;
     bufp += echo_reply_reserved;
     u64_to_big_endian(bufp, timemark);
-    bufp += timestamp_size;
+    bufp += timemark_size;
     u64_to_big_endian(bufp, token);
     send_plaintext_148(rx, 
                        NULL,
@@ -251,14 +260,14 @@ static void send_assoc_request(struct ms_udp_receiver* rx, struct ms_peer* peer)
     id = token + token_size;
     kex = id + node_id_size;
     cookie = kex + kex_public_size;
-    timemark = cookie + 8;
+    timemark = cookie + cookie_size;
 
     u64_to_big_endian(token, peer_token(peer));
     memcpy(id, peer_id(peer), node_id_size);
     memcpy(kex, rx->comctx.kex_public, kex_public_size);
-    memcpy(cookie, peer_cookie(peer), 8);
+    memcpy(cookie, peer_cookie(peer), cookie_size);
     u64_to_big_endian(timemark, timemark_sec(rx->peers));
-    obfuscate(timemark, 8);
+    obfuscate(timemark, timemark_size);
 
     crypto_eddsa_sign(sign,
                       rx->comctx.identity->master_secret_key,
@@ -423,46 +432,72 @@ static void send_encrypted(struct ms_udp_receiver *rx,
     crypto_aead_lock(ct, mac, peer_encrypt_key(peer), msg->buf, NULL, 0,
                      ct, payload_len + padding);
 
-    obfuscate(msg->buf + cipher_nonce_offset, cipher_nonce_used);
-
-    if(msg->buf[msg->offset] > ms_zb_enc_max) {
-        msg->offset--;
-        msg->buf[msg->offset] =
-            rand_from_range(ms_zb_enc_min, ms_zb_enc_max);
-    }
-
-    log_msg(llv_debug2,
+    log_msg(llv_debug,
             "sending encrypted dgram (cmd=%02x, size=%d/%d) to %s",
             payload[0], msg->len - msg->offset, payload_len,
             ipport2a(msg->ip, msg->port));
-#ifdef _RX_DEBUG
-    log_msg_bald(llv_debug2, 
+#ifndef _RX_DEBUG
+    log_msg_bald(llv_debug, 
                  "nonce: %s",
                  hexdata2a(msg->buf + cipher_nonce_offset, cipher_nonce_used));
-    log_msg_bald(llv_debug2, 
+    log_msg_bald(llv_debug, 
                  "mac:   %s",
                  hexdata2a(msg->buf + cipher_nonce_total, cipher_mac_size));
 #endif
+
+    obfuscate(msg->buf + cipher_nonce_offset, cipher_nonce_used);
+
+    msg->offset--;
+    msg->buf[msg->offset] = rand_from_range(ms_zb_enc_min, ms_zb_enc_max);
 
     enqueue_datagram(rx, msg);
 }
 
 static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
 {
+    unsigned char payload = ms_cmd_keep_alive;
     unsigned int ip;
     unsigned short port;
     peer_get_addr(peer, &ip, &port);
     log_msg(llv_debug,
             "sending keepalive to %s",
             ipport2a(ip, port));
-    unsigned char payload = ms_cmd_keep_alive;
     send_encrypted(rx, peer, &payload, 1);
 }
 
 static void send_enc_imalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
 {
     unsigned char payload = ms_cmd_im_alive;
+    unsigned int ip;
+    unsigned short port;
+    peer_get_addr(peer, &ip, &port);
+    log_msg(llv_debug,
+            "sending i_am_alive to %s",
+            ipport2a(ip, port));
     send_encrypted(rx, peer, &payload, 1);
+}
+
+static void send_change_key_request(struct ms_udp_receiver *rx,
+                                    unsigned int ip, unsigned short port,
+                                    const unsigned char* remote_nonce)
+{
+    unsigned char buf[change_key_payload_size + sign_size];
+    unsigned char *bufp = buf;
+
+    memcpy(bufp, rx->comctx.kex_public, kex_public_size);
+    bufp += kex_public_size;
+    memcpy(bufp, remote_nonce, cipher_nonce_used);
+    bufp += cipher_nonce_used;
+    u64_to_big_endian(bufp, timemark_sec(rx->peers));
+    bufp += timemark_size;
+    comctx_fill_nonce(&rx->comctx, bufp);
+    obfuscate(bufp, cipher_nonce_used);
+    bufp += cipher_nonce_used;
+    crypto_eddsa_sign(bufp, rx->comctx.identity->master_secret_key,
+                      buf, change_key_payload_size);
+
+    send_plaintext_148(rx, NULL, ip, port, ms_cmd_change_key,
+                       buf, sizeof(buf));
 }
 
 
@@ -471,11 +506,11 @@ static void handle_unknown_dgram(struct ms_udp_receiver* rx,
                                  const unsigned char* body, int len)
 {
     log_msg(llv_debug, 
-            "got unknown shit from %s, dropping",
+            "ignoring dgram from %s (invalid cmd)",
             ipport2a(ip, port));
 }
 
-static void handle_intro_req(struct ms_udp_receiver* rx,
+static void handle_intro_request(struct ms_udp_receiver* rx,
                              unsigned int ip, unsigned short port,
                              const unsigned char* body, int len)
 {
@@ -491,12 +526,19 @@ static void handle_intro(struct ms_udp_receiver* rx,
 }
 
 
-static void handle_echo_req(struct ms_udp_receiver* rx,
+static void handle_echo_request(struct ms_udp_receiver* rx,
                             unsigned int ip, unsigned short port,
                             const unsigned char* data, int len)
 {
+    if(len != padded_msg_size - 2) {
+        log_msg(llv_debug, 
+                "ignoring echo_request from %s (len mismatch)",
+                ipport2a(ip, port), len);
+        /* here must be some means against peers that send us such shit*/
+        return;
+    }
     log_msg(llv_debug, 
-            "echo request from %s, will reply",
+            "received echo_request from %s, will reply",
             ipport2a(ip, port));
     send_echo_reply(rx, ip, port);
 }
@@ -512,7 +554,7 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
     peer = get_peer_record(rx->peers, ip, port, 0);
     if(!peer) {
         log_msg(llv_debug, 
-                "stray echo reply from %s, dropping",
+                "ignoring stray echo_reply from %s",
                 ipport2a(ip, port));
         return;
     }
@@ -536,33 +578,33 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
         case as_assoc_request_sent: 
         case as_assoc_fini_sent: 
             log_msg(llv_debug,
-                    "didn't expect echo_reply from %s, dropping",
+                    "ignoring unrequested echo_reply from %s (didn't expect)",
                     ipport2a(ip, port));
             return;
         default:
             log_msg(llv_debug,
-                    "unknown value (%d) for assoc status of %s",
+                    "unknown value (%02x) for assoc status of %s",
                     assoc_status, peer_description(peer));
             return;
     }
 
     log_msg(llv_debug, 
-            "echo_reply from %s, will associate",
+            "received echo_reply from %s, will associate",
             ipport2a(ip, port));
 
-    received_token = u64_from_big_endian(body + echo_reply_reserved + timestamp_size);
+    received_token = u64_from_big_endian(body + echo_reply_reserved + timemark_size);
     peer_set_token(peer, received_token);
-    
     peer_set_last_tm(peer, timemark_sec(rx->peers));
     peer_generate_new_cookie(peer);
+
     peer_set_assoc_status(peer, as_assoc_request_sent);
     send_assoc_request(rx, peer);
 }
 
 
-static void handle_assoc_req(struct ms_udp_receiver* rx,
-                             unsigned int ip, unsigned short port,
-                             unsigned char* body, int len)
+static void handle_assoc_request(struct ms_udp_receiver* rx,
+                                 unsigned int ip, unsigned short port,
+                                 unsigned char* body, int len)
 {
     int kndbres, r;
     int assoc_status;
@@ -575,9 +617,9 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     unsigned char remote_pubkey[public_key_size];
 
 
-    if(len != 146) {
+    if(len != padded_msg_size - 2) {
         log_msg(llv_debug, 
-                "ignoring assoc_req from %s (msg len mismatch)",
+                "ignoring assoc_req from %s (len mismatch)",
                 ipport2a(ip, port));
         return;
     }
@@ -595,10 +637,10 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     remote_id = token + token_size;
     kex = remote_id + node_id_size;
     cookie = kex + kex_public_size;
-    timemark = cookie + 8;
-    deobfuscate(timemark, 8);
+    timemark = cookie + cookie_size;
+    deobfuscate(timemark, timemark_size);
 
-    log_msg(llv_debug, "received assoc_req from %s",
+    log_msg(llv_debug, "received assoc_request from %s",
             ipport2a(ip, port));
 
 #ifdef _RX_DEBUG
@@ -620,7 +662,7 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     if(!token_is_valid(rx, ip, port, received_token))
     {
         log_msg(llv_debug, 
-                "ignoring assoc_req from %s (invalid token)",
+                "ignoring assoc_request from %s (invalid token)",
                 ipport2a(ip, port));
         /* TODO: we DEFINITELY need to send error and probably set cooldown for this peer */
         return;
@@ -632,15 +674,28 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     switch (assoc_status) {
         case as_none: /* that's good*/
         case as_echo_request_sent:
+        break;
         case as_assoc_fini_sent: /* maybe they lost out fini, so let's try resending */
+            if (peer_kex_public_is_same(peer, kex)) { 
+                log_msg(llv_debug, 
+                        "resending assoc_fini for %s (duplicate request)", 
+                        ipport2a(ip, port));
+                send_assoc_fini(rx, peer);
+                return;
+            }
         break;
         case as_gave_up: /* that's also good*/
             peer_set_assoc_status(peer, as_none);
             break;  
         case as_established: /* who not... if sign will be valid we can try re-assoc*/
+            if (peer_kex_public_is_same(peer, kex)) {
+                log_msg(llv_debug, "ignoring duplicate assoc_request from %s (already established)",
+                        ipport2a(ip, port));
+                return;
+            }
             if(!node_id_is_same(peer, remote_id)) {
                 log_msg(llv_debug,
-                        "ignoring re-assoc_req from %s (node id differs)",
+                        "ignoring re-assoc_request from %s (node id differs)",
                         ipport2a(ip, port));
                 /* TODO: we probably need to send error*/
                 return;
@@ -648,31 +703,29 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
             break;
         case as_not_desired:
             log_msg(llv_debug, 
-                    "didn't expect assoc_req from %s, dropping",
+                    "ignoring assoc_request from %s (not desired)",
                     ipport2a(ip, port));
             /* TODO: we DEFINITELY need to send error*/
             return;
         default:
             log_msg(llv_debug,
-                    "unknown value (%d) for assoc status of %s",
+                    "unknown value (%02x) for assoc status of %s",
                     assoc_status, peer_description(peer));
             return;
     }
-
 
     remote_tm = u64_from_big_endian(timemark);
     local_now = timemark_sec(rx->peers);
     if (remote_tm < local_now - timemark_gap || remote_tm > local_now + timemark_gap) {
         log_msg(llv_debug,
-                "ignoring assoc_req from %s (invalid timestamp)",
+                "ignoring assoc_request from %s (invalid timestamp)",
                 ipport2a(ip, port));
         return;
     }
 
-    if (remote_tm <= peer_get_last_tm(peer) || 
-        memcmp(cookie, peer_cookie(peer), 8) == 0) {
+    if (remote_tm <= peer_get_last_tm(peer)) {
         log_msg(llv_debug,
-                "ignoring assoc_req from %s (timestamp replay)",
+                "ignoring assoc_request from %s (timestamp replay)",
                 ipport2a(ip, port));
         return;
     }
@@ -683,7 +736,7 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     if (kndbres != kndb_res_success) {
         /* TODO: will switch with detailed log_msgs later (i hope)*/
         log_msg(llv_debug,
-                "ignoring assoc_req from %s (kndb refused)",
+                "ignoring assoc_request from %s (kndb refused)",
                 ipport2a(ip, port));
         /* TODO: we DEFINITELY need to send error*/
         return;
@@ -693,22 +746,13 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
                            body, assoc_req_payload_size);
     if(!r){
         log_msg(llv_debug, 
-                "ignoring assoc_req from %s (invalid sign)",
+                "ignoring assoc_request from %s (invalid sign)",
                 ipport2a(ip, port));
         /* TODO: we DEFINITELY need to send error*/
         return;
     }
     
     /* if sing is valid we don't care if it's 1st assoc or re-assoc*/
-
-    remote_tm = u64_from_big_endian(timemark);
-    if (remote_tm <= peer_get_last_tm(peer)) {
-        log_msg(llv_debug, 
-                "ignoring assoc_req from %s (invalid timestamp)",
-                ipport2a(ip, port));
-        /* TODO: we DEFINITELY need to send error and cooldown and BAN them and launch NUKE there*/
-        return;
-    }
 
     r = peer_set_identity(peer, remote_id, remote_pubkey);
     if(!r) {
@@ -737,15 +781,16 @@ static void handle_assoc_req(struct ms_udp_receiver* rx,
     peer_set_kex_public(rx->peers, peer, kex, 1);
     peer_set_cookie(peer, cookie);
     peer_set_last_tm(peer, remote_tm);
+
     update_peer_last_rx(peer);
     peer_set_assoc_status(peer, as_assoc_fini_sent);
     send_assoc_fini(rx, peer);
 }
 
 static void handle_assoc_fini(struct ms_udp_receiver* rx,
-                                     unsigned int ip, unsigned short port,
-                                     unsigned char* payload,
-                                     int payload_len)
+                              unsigned int ip, unsigned short port,
+                              unsigned char* payload,
+                              int payload_len)
 {
     int r, kndbres, key_still_same, assoc_status;
     struct ms_peer *peer;
@@ -754,14 +799,15 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
     unsigned char remote_pubkey[public_key_size];
     const unsigned char *nonce, *mac;
     unsigned char *ct, *remote_id, *timemark, *cookie, *sign;
+    unsigned long long remote_tm, local_now;
 
     peer = get_peer_record(rx->peers, ip, port, 1);
 
     nonce = payload + kex_public_size;
 
-    if(payload_len != 146) {
+    if(payload_len != padded_msg_size - 2) {
         log_msg(llv_debug, 
-                "ignoring assoc_fini from %s (msg len mismatch)",
+                "ignoring assoc_fini from %s (len mismatch)",
                 ipport2a(ip, port));
         return;
     }
@@ -783,12 +829,12 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
         case as_not_desired:
         case as_echo_request_sent:
             log_msg(llv_debug, 
-                    "didn't expect assoc_fini from %s, dropping",
+                    "ignoring unrequested assoc_fini from %s (didn't expect)",
                     ipport2a(ip, port));
             return;
         default:
             log_msg(llv_debug,
-                    "unknown value (%d) for assoc status of %s",
+                    "unknown value (%02x) for assoc status of %s",
                     assoc_status, peer_description(peer));
             return;
     }
@@ -823,11 +869,11 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
 
     remote_id = ct;
     cookie = remote_id + node_id_size;
-    timemark = cookie + 8;
-    sign = cookie + 8;
-    deobfuscate(timemark, 8);
+    timemark = cookie + cookie_size;
+    sign = timemark + timemark_size;
+    deobfuscate(timemark, timemark_size);
 
-    log_msg(llv_debug, "received assoc_fini from %s",
+    log_msg(llv_debug, "decrypted assoc_fini from %s",
             ipport2a(ip, port));
 
 #ifdef _RX_DEBUG
@@ -840,6 +886,23 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
     log_msg_bald(llv_debug, "sign:     %s",
             hexdata2a(sign, sign_size));
 #endif
+
+    r = peer_check_cookie(peer, cookie);
+    if (!r) {
+        log_msg(llv_debug, 
+                "ignoring assoc_fini from %s (invalid cookie)",
+                ipport2a(ip, port));
+        return;
+    }
+
+    remote_tm = u64_from_big_endian(timemark);
+    local_now = timemark_sec(rx->peers);
+    if (remote_tm < local_now - timemark_gap || remote_tm > local_now + timemark_gap) {
+        log_msg(llv_debug,
+                "ignoring assoc_fini from %s (invalid timestamp)",
+                ipport2a(ip, port));
+        return;
+    }
 
     kndbres = kndb_get_node(rx->kndb, remote_id, remote_pubkey);
     if (kndbres != kndb_res_success) {
@@ -854,14 +917,6 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
     if (!r) {
         log_msg(llv_debug, 
                 "ignoring assoc_fini from %s (invalid sign)", 
-                ipport2a(ip, port));
-        return;
-    }
-
-    r = peer_check_cookie(peer, cookie);
-    if (!r) {
-        log_msg(llv_debug, 
-                "ignoring assoc_fini from %s (invalid cookie)",
                 ipport2a(ip, port));
         return;
     }
@@ -887,11 +942,31 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
             "association with %s established",
             peer_description(peer));
 
-    update_peer_last_rx(peer);
     peer_generate_new_cookie(peer);
     peer_set_last_tm(peer, u64_from_big_endian(timemark));
+
+    update_peer_last_rx(peer);
     peer_set_assoc_status(peer, as_established);
     send_enc_keepalive(rx, peer);
+}
+
+static void handle_change_key_request(struct ms_udp_receiver *rx,
+                                      unsigned int ip, unsigned short port,
+                                      unsigned char* payload,
+                                      int payload_len)
+{
+    struct ms_peer *peer;
+    int assoc_status;
+
+    peer = get_peer_record(rx->peers, ip, port, 0);
+    if(!peer) {
+        log_msg(llv_info | llv_private,
+                "ignoring stray change_key from %s", 
+                ipport2a(ip, port));
+        return;
+    }
+
+    assoc_status = peer_assoc_status(peer);
 }
 
 
@@ -910,25 +985,28 @@ static void handle_plain_dgram(struct ms_udp_receiver* rx,
     log_msg(llv_debug, "plain dgram: cmd %02x", cmd);
     switch (cmd) {
         case ms_cmd_echo_request: 
-            handle_echo_req(rx, ip, port, dgram+2, len-2);
+            handle_echo_request(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_echo_reply: 
             handle_echo_reply(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_assoc_request: 
-            handle_assoc_req(rx, ip, port, dgram+2, len-2);
+            handle_assoc_request(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_assoc_fini: 
             handle_assoc_fini(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_intro_request: 
-            handle_intro_req(rx, ip, port, dgram+2, len-2);
+            handle_intro_request(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_intro_reply: 
             handle_intro(rx, ip, port, dgram+2, len-2);
             break;
         case ms_cmd_error: 
             handle_error(rx, ip, port, dgram+2, len-2);
+            break;
+        case ms_cmd_change_key: 
+            handle_change_key_request(rx, ip, port, dgram+2, len-2);
             break;
         default:
             handle_unknown_dgram(rx, ip, port, dgram, len);
@@ -948,7 +1026,7 @@ static void handle_enc_keepalive(struct ms_udp_receiver* rx,
 static void handle_enc_imalive(struct ms_udp_receiver* rx,
                                struct ms_peer* peer)
 {
-    log_msg(llv_debug, "received im alive from %s",
+    log_msg(llv_debug, "received i_am_alive from %s",
                                 peer_description(peer));
 }
 
@@ -976,11 +1054,13 @@ static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
     peer = get_peer_record(rx->peers, ip, port, 0);
     if(!peer) {
         log_msg(llv_info,
-            "stray encrypted dgram from %s, dropping",
+            "received stray encrypted dgram from %s (peer unknown)",
             ipport2a(ip, port));
+        send_change_key_request(rx, ip, port, dgram);
         /* TODO: countermeasures?*/
         return;
     }
+
 
     memset(nonce, 0, cipher_nonce_offset);
     memcpy(nonce + cipher_nonce_offset, dgram, cipher_nonce_used);
@@ -988,6 +1068,7 @@ static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
 
     r = crypto_aead_unlock(ct, mac, peer_decrypt_key(peer), nonce, NULL, 0,
                            ct, ctlen);
+
     if(r != 0) {
         log_msg(llv_info, "failed to decrypt dgram from %s",
                 peer_description(peer));
@@ -999,7 +1080,18 @@ static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
         return;
     }
 
-    log_msg(llv_debug, "encrypted dgram: cmd %02x", ct[0]);
+    log_msg(llv_debug,
+            "encrypted dgram (cmd=%02x) from %s",
+            ct[0], ipport2a(ip, port));
+
+#ifndef _RX_DEBUG
+    log_msg_bald(llv_debug, 
+                 "nonce: %s",
+                 hexdata2a(nonce + cipher_nonce_offset, cipher_nonce_used));
+    log_msg_bald(llv_debug, 
+                 "mac:   %s",
+                 hexdata2a(mac, cipher_mac_size));
+#endif
 
     r = peer_check_update_nonce(peer, nonce + cipher_nonce_offset,
                                 "handle_encrypted_dgram");
@@ -1045,8 +1137,8 @@ static void handle_incoming_dgram(struct ms_udp_receiver* rx,
 {
     if(len > ms_max_dgram) {
         log_msg(llv_debug, 
-                "dgram too long, dropping",
-                ipport2a(ip, port));
+                "dgram from %s too long (%d), dropping",
+                ipport2a(ip, port), len);
         /* here must be some means against peers that send us such shit*/
         return;
     }
@@ -1055,7 +1147,7 @@ static void handle_incoming_dgram(struct ms_udp_receiver* rx,
         handle_plain_dgram(rx, ip, port, dgram, len);
     }
     else if(dgram[0] >= ms_zb_enc_min && dgram[0] <= ms_zb_enc_max) {
-        handle_encrypted_dgram(rx, ip, port, dgram, len);
+        handle_encrypted_dgram(rx, ip, port, dgram+1, len-1);
     }
 
 }

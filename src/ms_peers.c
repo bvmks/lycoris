@@ -38,9 +38,10 @@ struct ms_peer {
     unsigned char decrypt_key[cipher_key_size];
     unsigned char encrypt_key[cipher_key_size];
 
-    unsigned long long token;   /* token from echo reply */
-    unsigned char cookie[8];    /* cookie used for assoc_req/assoc_fini excange */
-    unsigned long long last_timemark; /* timemark of last valid accepted assoc_req */
+    unsigned long long last_token;   /* token from echo reply */
+
+    unsigned char last_assoc_cookie[8];     /* cookie used for assoc_req/assoc_fini excange */
+    unsigned long long last_assoc_timemark; /* timemark of last valid accepted assoc_req */
 
     unsigned long long last_rx;
     unsigned long long last_tx;
@@ -134,7 +135,7 @@ void peers_timer_hook(struct ms_peer_collection* col)
         peer_get_idle(peer, &since_last_rx, &since_last_tx);
         peer_get_addr(peer, &ip, &port);
         log_msg(llv_debug2, 
-                "        peer %s since_last_rx/tx %d/%d (st: %s)\n",
+                "peer %s since_last_rx/tx %d/%d (st: %s)\n",
                 ipport2a(ip, port), 
                 since_last_rx, since_last_tx,
                 assoc_status_str(as));
@@ -239,10 +240,10 @@ static void peer_init(struct ms_peer_collection* col, struct addr_item* item)
     peer->the_item = item;
     peer->ip = ip;
     peer->port = port;
-    peer->last_timemark = 0;
+    peer->last_assoc_timemark = 0;
     peer->last_rx = -1;
     peer->last_tx = -1;
-    peer->token = 0;
+    peer->last_token = 0;
     peer->init_assoc = 0;
     peer->assoc_status = as_none;
 
@@ -323,33 +324,33 @@ void peer_get_addr(const struct ms_peer* peer, unsigned int* ip, unsigned short*
 
 void peer_set_token(struct ms_peer* peer, unsigned long long token)
 {
-    peer->token = token;
+    peer->last_token = token;
 }
 
 unsigned long long peer_token(struct ms_peer* peer)
 {
-    return peer->token;
+    return peer->last_token;
 }
 
 
 void peer_set_cookie(struct ms_peer* peer, const unsigned char cookie[8])
 {
-    memcpy(peer->cookie, cookie, 8);
+    memcpy(peer->last_assoc_cookie, cookie, 8);
 }
 
 void peer_generate_new_cookie(struct ms_peer* peer)
 {
-    get_random(&peer->cookie, 8);
+    get_random(&peer->last_assoc_cookie, 8);
 }
 
 const unsigned char* peer_cookie(struct ms_peer* peer)
 {
-    return peer->cookie;
+    return peer->last_assoc_cookie;
 }
 
 int peer_check_cookie(const struct ms_peer* peer, const unsigned char cookie [8])
 {
-    return 0 == memcmp(peer->cookie, cookie, 8);
+    return 0 == memcmp(peer->last_assoc_cookie, cookie, 8);
 }
 
 const unsigned char* peer_id(struct ms_peer* peer)
@@ -369,12 +370,12 @@ const unsigned char* peer_decrypt_key(const struct ms_peer* peer)
 
 void peer_set_last_tm(struct ms_peer* peer, unsigned long long ts)
 {
-    peer->last_timemark = ts;
+    peer->last_assoc_timemark = ts;
 }
 
 unsigned long long peer_get_last_tm(const struct ms_peer* peer)
 {
-    return peer->last_timemark;
+    return peer->last_assoc_timemark;
 }
 
 
@@ -456,6 +457,8 @@ int peer_set_kex_public(struct ms_peer_collection* col, struct ms_peer* peer,
     log_msg(llv_debug, "set kex pub %s for %s",
             hexdata2a(peer->remote_kex_pub, kex_public_size),
             ipport2a(peer->ip, peer->port));
+    log_msg_bald(llv_debug, "our kex pub %s",
+            hexdata2a(col->the_comctx->kex_public, kex_public_size));
     return 1;
 }
 

@@ -41,12 +41,14 @@ enum {
     ms_cmd_echo_reply    = 0xED,
     ms_cmd_assoc_request = 0xA5,
     ms_cmd_assoc_fini    = 0xAA,
-    ms_cmd_intro_request = 0xA1,
-    ms_cmd_intro_reply   = 0x1A,
+    ms_cmd_intro_request = 0x1C,
+    ms_cmd_intro_reply   = 0x1D,
     ms_cmd_error         = 0xEE,
 
-    ms_cmd_keep_alive    = 0xAE,        /* encrypted */
-    ms_cmd_im_alive      = 0xAF,
+    ms_cmd_change_key    = 0xCC,
+
+    ms_cmd_keep_alive    = 0x2C,        /* encrypted */
+    ms_cmd_im_alive      = 0x2D,
 
     ms_cmd_data          = 0xDA,
 
