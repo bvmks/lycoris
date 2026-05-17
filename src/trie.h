@@ -1,5 +1,5 @@
-#ifndef MS_TRIE_H
-#define MS_TRIE_H
+#ifndef _MS_TRIE_H
+#define _MS_TRIE_H
 
 #include <stddef.h>
 
