@@ -1,6 +1,8 @@
 #ifndef _MS_COMM_PARSER_H
 #define _MS_COMM_PARSER_H
 
+#include "trie.h"
+
 enum ms_ccom_type{
     ms_ccmd_bind,
     ms_ccmd_stat,
@@ -19,21 +21,35 @@ enum ms_cparser_state{
     ms_cps_disposing_body,
     ms_cps_fin,
     ms_cps_fin_error,
+    ms_cps_fin_fatal,
 };
 
 
 enum ms_cparser_res{
     ms_cp_res_want_more,
     ms_cp_res_finished,
+    ms_cp_res_fatal,
     ms_cp_res_error,
 };
 
 struct ms_ccmd {
-
+    enum ms_ccom_type type;
+    unsigned int iport;
+    unsigned char *body_buf;
+    unsigned long long body_len;
+    unsigned long long body_bytes_read;
 };
 
 struct ms_cparser {
-
+    enum ms_cparser_state state;
+    enum ms_cparser_mode mode;
+    struct trie cmd_trie;
+    
+    unsigned char line_buf[1024];
+    unsigned long long buf_used;
+    
+    unsigned long long direct_wanted_bytes;
+    void *direct_ptr;
 };
 
 struct ms_ccmd* make_cmd();

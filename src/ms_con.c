@@ -141,20 +141,47 @@ static int check_clean_socket(const char *path)
     return 1;
 }
 
+static int process_parse_result(int res, struct ms_con_session* ses) {
+    struct ms_ccmd_result* cmd_result;
+        switch (res) {
+        case ms_cp_res_want_more:
+            return 1;
+        case ms_cp_res_finished:
+            cmd_result = handle_ccmd(ses->cur_cmd);
+            /* here goes response code*/
+
+            dispose_cmd_res(cmd_result);
+            cmd_reset(ses->cur_cmd);
+            ms_cparser_reset(&ses->parser);
+            return 1;
+        case ms_cp_res_error:
+            log_msg(llv_alert, "control command parsing failed");
+            cmd_reset(ses->cur_cmd);
+            ms_cparser_reset(&ses->parser);
+            return 1;
+        case ms_cp_res_fatal:
+            log_msg(llv_alert, "control command parsing fatal error");
+            close_session(ses);
+            return 0;
+        }
+    log_msg(llv_alert, "unknown parsing result (%d) (BUG)", res);
+    return 0;
+}
 
 static void session_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
     struct ms_con_session* ses = h->userdata;
     struct ms_cparser* parser = &ses->parser;
-    struct ms_ccmd_result* res;
-    void* read_ptr;
-    unsigned long long read_size;
-    unsigned long long direct;
 
-    long long rest;
-    long long parser_readed;
+    unsigned long long direct_wanted;
+    unsigned long long read_size;
+    void* read_ptr;
+
     unsigned char buf[con_sess_buff_size];
-    int rd, parser_res;
+    unsigned char* parser_read_ptr;
+    long long parser_readed;
+    long long rest;
+    int rd, res;
 
     if(!r || w || x) {
         log_msg(llv_alert,
@@ -162,10 +189,10 @@ static void session_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         return;
     }
 
-    direct = ms_cparser_want_direct(parser);
-    if(direct) {
+    direct_wanted = ms_cparser_want_direct(parser);
+    if(direct_wanted) {
         read_ptr = ms_cparser_get_direct(parser);
-        read_size = direct > con_sess_max_direct ? con_sess_max_direct : direct;
+        read_size = direct_wanted > con_sess_max_direct ? con_sess_max_direct : direct_wanted;
     }
     else {
         read_ptr = buf;
@@ -180,24 +207,31 @@ static void session_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         return;
     }
 
+    if(direct_wanted) {
+        res = ms_cparser_feed(parser, ses->cur_cmd, 
+                              NULL, rd, &parser_readed,
+                              1);
+        process_parse_result(res, ses);
+        return;
+    }
+
     rest = rd;
+    parser_read_ptr = buf;
     while(rest > 0) {
-        parser_res = ms_cparser_feed(parser, ses->cur_cmd, 
-                                     direct? NULL:read_ptr, rd, &parser_readed,
-                                     direct?1:0);
-        rest -= parser_readed;
-        switch (parser_res) {
-        case ms_cp_res_finished:
-            res = handle_ccmd(ses->cur_cmd);
-            /* here goes response code*/
-            dispose_cmd_res(res);
-            break;
-        case ms_cp_res_want_more:
-            break;
-        case ms_cp_res_error:
-            log_msg(llv_alert, "control command parsing failed");
-            break;
+        res = ms_cparser_feed(parser, ses->cur_cmd, 
+                              parser_read_ptr, rest, &parser_readed,
+                              0);
+        if(!process_parse_result(res, ses))
+            return;
+
+        if (parser_readed <= 0) {
+            log_msg(llv_alert, "session_fd_handler: parser stalled (readed <= 0) (probably a bug)");
+            close_session(ses);
+            return;
         }
+
+        rest -= parser_readed;
+        parser_read_ptr += parser_readed;
     }
 
     if(ses->to_close)
