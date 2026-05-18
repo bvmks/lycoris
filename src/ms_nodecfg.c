@@ -25,6 +25,9 @@ struct ms_node_cfg* make_node_cfg()
 
     p->kndb_dir = NULL;
     p->keys_dir = NULL;
+
+    p->has_control_sock = 0;
+    p->control_sock_path = NULL;
     
     p->cooldown_timeout = mscfg_def_cooldown_timeout;
     p->peer_timeout = mscfg_def_peer_timeout;
@@ -48,7 +51,7 @@ void dispose_node_cfg(struct ms_node_cfg *p)
     free(p);
 }
 
-static void settle_keydir(struct ms_node_cfg* cfg)
+static void settle_keys_dir(struct ms_node_cfg* cfg)
 {
     settle_localpath(&cfg->keys_dir, ".ms/keys");
 }
@@ -58,13 +61,21 @@ static void settle_kndb_dir(struct ms_node_cfg* cfg)
     settle_localpath(&cfg->kndb_dir, ".ms/known.db");
 }
 
+static void settle_ctlsock_path(struct ms_node_cfg* cfg)
+{
+    settle_localpath(&cfg->control_sock_path, ".ms/ctlsock");
+}
+
 struct ms_node_cfg* make_node_def_cfg()
 {
     struct ms_node_cfg* n;
     n = make_node_cfg();
 
-    settle_keydir(n);
+    settle_keys_dir(n);
     settle_kndb_dir(n);
+
+    n->has_control_sock = 1;
+    settle_ctlsock_path(n);
     return n;
 }
 

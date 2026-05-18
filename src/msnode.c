@@ -20,6 +20,7 @@
 #include "ms_sig.h"
 #include "ms_lh.h"
 #include "ms_rx.h"
+#include "ms_con.h"
 
 #include "_version.h"
 
@@ -193,12 +194,13 @@ process_cmdline(int argc, char **argv, struct cmdline_args *args)
 
 int main(int argc, char** argv)
 {
-    struct sue_event_selector selector;
-    struct ms_udp_receiver* receiver;
-    struct ms_node_cfg* node_cfg;
-    struct ms_signal_target* sigtarget;
-    struct ms_loophook_target* lhtarget;
     struct cmdline_args args;
+    struct sue_event_selector selector;
+    struct ms_udp_receiver* receiver = NULL;
+    struct ms_node_cfg* node_cfg = NULL;
+    struct ms_signal_target* sigtarget = NULL;
+    struct ms_loophook_target* lhtarget = NULL;
+    struct ms_control_receiver* ctl_receiver = NULL;
     int res;
 
     setup_stderr_log(llv_debug | llv_private);
@@ -240,11 +242,16 @@ int main(int argc, char** argv)
 
     log_msg(llv_alert, "udp_receiver started, port: %d", receiver->the_cfg->listen_port);
 
+    if(node_cfg->has_control_sock)
+        ctl_receiver = launch_control_receiver(&selector, node_cfg, receiver);
+
     log_msg(llv_debug, "entering main loop");
     res = sue_sel_go(&selector);
     if(res == -1)
         log_msg(llv_alert, "main loop reported error");
     log_msg(llv_debug, "exited main loop");
+
+    dispose_control_receiver(ctl_receiver);
 
     free_targets(sigtarget, lhtarget);
     

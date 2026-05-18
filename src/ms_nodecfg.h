@@ -36,6 +36,9 @@ struct ms_node_cfg {
     char* kndb_dir;
     char* keys_dir;
 
+    int has_control_sock;
+    char* control_sock_path;
+
     int cooldown_timeout, peer_timeout, keepalive_interval;
     struct peer_conf *first_peer;
 };

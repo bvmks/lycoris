@@ -65,14 +65,14 @@ struct ms_peer_collection {
 const char* assoc_status_str(int status)
 {
     switch (status) {
-        case as_none: return "none";
-        case as_gave_up: return "gave_up";
-        case as_not_desired: return "not_desired";
-        case as_established: return "established";
-        case as_echo_request_sent: return "echo_request_sent";
-        case as_assoc_request_sent: return "assoc_request_sent";
-        case as_assoc_fini_sent: return "assoc_fini_sent";
-        default: return "unknown";
+    case as_none: return "none";
+    case as_gave_up: return "gave_up";
+    case as_not_desired: return "not_desired";
+    case as_established: return "established";
+    case as_echo_request_sent: return "echo_request_sent";
+    case as_assoc_request_sent: return "assoc_request_sent";
+    case as_assoc_fini_sent: return "assoc_fini_sent";
+    default: return "unknown";
     }
 }
 

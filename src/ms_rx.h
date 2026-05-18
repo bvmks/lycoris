@@ -13,6 +13,8 @@ struct known_nodes_db;
 struct ms_node_cfg;
 struct ms_nodeid_file;
 
+struct ms_control_receiver;
+
 struct ms_udp_receiver {
     struct sue_fd_handler fdh;
     struct sue_timeout_handler tmoh;
@@ -22,6 +24,8 @@ struct ms_udp_receiver {
     struct ms_peer_collection* peers;
     struct ms_transmit_queue* txq;
     struct known_nodes_db* kndb;
+
+    struct ms_control_receiver* the_crx;
 
     struct ms_node_cfg* the_cfg;
 };
@@ -38,6 +42,8 @@ int can_send_to_known(struct ms_udp_receiver* rx, unsigned char id[node_id_size]
 int send_to_known(struct ms_udp_receiver* rx, 
                   unsigned char id[node_id_size],
                   void* buf, int len);
+
+void set_control_receiver(struct ms_udp_receiver* rx, struct ms_control_receiver* crx);
 
 void handle_assoc_process(struct ms_udp_receiver* rx,
                                 struct ms_peer* peer);

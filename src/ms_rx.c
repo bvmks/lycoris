@@ -48,6 +48,10 @@ enum {
 };
 
 
+void set_control_receiver(struct ms_udp_receiver* rx, struct ms_control_receiver* crx)
+{
+    rx->the_crx = crx;
+}
 
 void obfuscate(unsigned char *buf, int size)
 {
@@ -565,27 +569,27 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
     
     assoc_status = peer_assoc_status(peer);
     switch (assoc_status) {
-        case as_echo_request_sent: 
-            break;
-        case as_established:
-            log_msg(llv_debug,
-                    "ignoring unrequested echo_reply from %s (assoc. established)",
-                    peer_description(peer));
-            return;
-        case as_gave_up: 
-        case as_none: 
-        case as_not_desired: 
-        case as_assoc_request_sent: 
-        case as_assoc_fini_sent: 
-            log_msg(llv_debug,
-                    "ignoring unrequested echo_reply from %s (didn't expect)",
-                    ipport2a(ip, port));
-            return;
-        default:
-            log_msg(llv_debug,
-                    "unknown value (%02x) for assoc status of %s",
-                    assoc_status, peer_description(peer));
-            return;
+    case as_echo_request_sent: 
+        break;
+    case as_established:
+        log_msg(llv_debug,
+                "ignoring unrequested echo_reply from %s (assoc. established)",
+                peer_description(peer));
+        return;
+    case as_gave_up: 
+    case as_none: 
+    case as_not_desired: 
+    case as_assoc_request_sent: 
+    case as_assoc_fini_sent: 
+        log_msg(llv_debug,
+                "ignoring unrequested echo_reply from %s (didn't expect)",
+                ipport2a(ip, port));
+        return;
+    default:
+        log_msg(llv_debug,
+                "unknown value (%02x) for assoc status of %s",
+                assoc_status, peer_description(peer));
+        return;
     }
 
     log_msg(llv_debug, 
@@ -672,46 +676,46 @@ static void handle_assoc_request(struct ms_udp_receiver* rx,
     peer = get_peer_record(rx->peers, ip, port, 1);
     assoc_status = peer_assoc_status(peer);
     switch (assoc_status) {
-        case as_none: /* that's good*/
-        case as_echo_request_sent:
-        break;
-        case as_assoc_fini_sent: /* maybe they lost out fini, so let's try resending */
-            if (peer_kex_public_is_same(peer, kex)) { 
-                log_msg(llv_debug, 
-                        "resending assoc_fini for %s (duplicate request)", 
-                        ipport2a(ip, port));
-                send_assoc_fini(rx, peer);
-                return;
-            }
-        break;
-        case as_gave_up: /* that's also good*/
-            peer_set_assoc_status(peer, as_none);
-            break;  
-        case as_established: /* who not... if sign will be valid we can try re-assoc*/
-            if (peer_kex_public_is_same(peer, kex)) {
-                log_msg(llv_debug, "ignoring duplicate assoc_request from %s (already established)",
-                        ipport2a(ip, port));
-                return;
-            }
-            if(!node_id_is_same(peer, remote_id)) {
-                log_msg(llv_debug,
-                        "ignoring re-assoc_request from %s (node id differs)",
-                        ipport2a(ip, port));
-                /* TODO: we probably need to send error*/
-                return;
-            }
-            break;
-        case as_not_desired:
+    case as_none: /* that's good*/
+    case as_echo_request_sent:
+    break;
+    case as_assoc_fini_sent: /* maybe they lost out fini, so let's try resending */
+        if (peer_kex_public_is_same(peer, kex)) { 
             log_msg(llv_debug, 
-                    "ignoring assoc_request from %s (not desired)",
+                    "resending assoc_fini for %s (duplicate request)", 
                     ipport2a(ip, port));
-            /* TODO: we DEFINITELY need to send error*/
+            send_assoc_fini(rx, peer);
             return;
-        default:
+        }
+    break;
+    case as_gave_up: /* that's also good*/
+        peer_set_assoc_status(peer, as_none);
+        break;  
+    case as_established: /* who not... if sign will be valid we can try re-assoc*/
+        if (peer_kex_public_is_same(peer, kex)) {
+            log_msg(llv_debug, "ignoring duplicate assoc_request from %s (already established)",
+                    ipport2a(ip, port));
+            return;
+        }
+        if(!node_id_is_same(peer, remote_id)) {
             log_msg(llv_debug,
-                    "unknown value (%02x) for assoc status of %s",
-                    assoc_status, peer_description(peer));
+                    "ignoring re-assoc_request from %s (node id differs)",
+                    ipport2a(ip, port));
+            /* TODO: we probably need to send error*/
             return;
+        }
+        break;
+    case as_not_desired:
+        log_msg(llv_debug, 
+                "ignoring assoc_request from %s (not desired)",
+                ipport2a(ip, port));
+        /* TODO: we DEFINITELY need to send error*/
+        return;
+    default:
+        log_msg(llv_debug,
+                "unknown value (%02x) for assoc status of %s",
+                assoc_status, peer_description(peer));
+        return;
     }
 
     remote_tm = u64_from_big_endian(timemark);
@@ -822,21 +826,21 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
 
     assoc_status = peer_assoc_status(peer);
     switch (assoc_status) {
-        case as_assoc_request_sent:
-            break;  /* that's what we need */
-        case as_none:
-        case as_gave_up:
-        case as_not_desired:
-        case as_echo_request_sent:
-            log_msg(llv_debug, 
-                    "ignoring unrequested assoc_fini from %s (didn't expect)",
-                    ipport2a(ip, port));
-            return;
-        default:
-            log_msg(llv_debug,
-                    "unknown value (%02x) for assoc status of %s",
-                    assoc_status, peer_description(peer));
-            return;
+    case as_assoc_request_sent:
+        break;  /* that's what we need */
+    case as_none:
+    case as_gave_up:
+    case as_not_desired:
+    case as_echo_request_sent:
+        log_msg(llv_debug, 
+                "ignoring unrequested assoc_fini from %s (didn't expect)",
+                ipport2a(ip, port));
+        return;
+    default:
+        log_msg(llv_debug,
+                "unknown value (%02x) for assoc status of %s",
+                assoc_status, peer_description(peer));
+        return;
     }
 
     key_still_same = peer_kex_public_is_same(peer, payload);
@@ -984,33 +988,33 @@ static void handle_plain_dgram(struct ms_udp_receiver* rx,
     cmd = get_plain_dgram_cmd(dgram);
     log_msg(llv_debug, "plain dgram: cmd %02x", cmd);
     switch (cmd) {
-        case ms_cmd_echo_request: 
-            handle_echo_request(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_echo_reply: 
-            handle_echo_reply(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_assoc_request: 
-            handle_assoc_request(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_assoc_fini: 
-            handle_assoc_fini(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_intro_request: 
-            handle_intro_request(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_intro_reply: 
-            handle_intro(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_error: 
-            handle_error(rx, ip, port, dgram+2, len-2);
-            break;
-        case ms_cmd_change_key: 
-            handle_change_key_request(rx, ip, port, dgram+2, len-2);
-            break;
-        default:
-            handle_unknown_dgram(rx, ip, port, dgram, len);
-            break;
+    case ms_cmd_echo_request: 
+        handle_echo_request(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_echo_reply: 
+        handle_echo_reply(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_assoc_request: 
+        handle_assoc_request(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_assoc_fini: 
+        handle_assoc_fini(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_intro_request: 
+        handle_intro_request(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_intro_reply: 
+        handle_intro(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_error: 
+        handle_error(rx, ip, port, dgram+2, len-2);
+        break;
+    case ms_cmd_change_key: 
+        handle_change_key_request(rx, ip, port, dgram+2, len-2);
+        break;
+    default:
+        handle_unknown_dgram(rx, ip, port, dgram, len);
+        break;
     }
 }
 
@@ -1305,6 +1309,7 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
     rx->the_selector = s;
     rx->the_cfg = cfg;
 
+    rx->the_crx = NULL;
 
     r = comctx_init(&rx->comctx);
     if(!r) {
