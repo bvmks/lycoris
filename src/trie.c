@@ -37,7 +37,7 @@ static void** traverse(struct trie_node* n, const char* key, int half, int add)
     if(is_term(*key))
         return &n->userdata;
 
-    idx = (half ? *key: (*key >> 4)) & 0x0f;
+    idx = (half ? *key : (*key >> 4)) & 0x0f;
     tmp = &(n->a[idx]);
 
     if(!*tmp && !add) {
@@ -45,7 +45,7 @@ static void** traverse(struct trie_node* n, const char* key, int half, int add)
     }
     if(!*tmp)
         *tmp = make_node();
-    return traverse(*tmp, half? key+1: key, !half, add);
+    return traverse(*tmp, half ? key+1 : key, !half, add);
 }
 
 static int has_children(struct trie_node* n) 
