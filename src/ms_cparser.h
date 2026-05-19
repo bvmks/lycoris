@@ -7,11 +7,13 @@
 enum ms_ccmd_type{
     ms_ccmd_undef = -1,
     ms_ccmd_bind,
+    ms_ccmd_chmod,
     ms_ccmd_stat,
     ms_ccmd_send,
 };
 
 enum ms_cparser_mode{
+    ms_cpm_undef,
     ms_cpm_text,
     ms_cpm_binary,
 };
@@ -29,6 +31,7 @@ enum ms_cparser_state{
 
 
 enum ms_cparser_res{
+    ms_cp_res_unknown,
     ms_cp_res_finished,
     ms_cp_res_want_more,
     ms_cp_res_fatal,
@@ -40,11 +43,14 @@ enum {
     ms_conn_iport_all = 0,
 
     ms_conn_iport_max = 16,
+
+    parser_inner_buf_size = 4000,
 };
 
 
 union resolved_addr{
     enum {
+        stat_resolve_undef = -1,
         stat_resolve_ipport,
         stat_resolve_name,  /* by configured peer name*/
         stat_resolve_dns,
@@ -59,12 +65,16 @@ struct ms_ccmd {
     enum ms_ccmd_type type;
     union {
         struct {
-            unsigned int iport;
+            int iport;
         } bind;
 
         struct {
             union resolved_addr addr;
         } stat;
+
+        struct {
+            int new_mode;
+        } chmod;
 
         struct {
             union resolved_addr addr;
@@ -83,8 +93,9 @@ struct ms_cparser {
     struct trie cmd_trie;
     struct ms_ccmd* target;
     
-    unsigned char buf[1024];
-    unsigned long long buf_used;
+    unsigned char buf[parser_inner_buf_size];
+    unsigned char* buf_p;
+    unsigned int buf_used;
 };
 
 struct ms_ccmd* make_cmd();

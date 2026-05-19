@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "trie.h"
+#include "utils.h"
 
 static struct trie_node* make_node() 
 {
@@ -23,10 +24,6 @@ static void traverse_clear(struct trie_node* node)
         }
     }
     free(node);
-}
-
-static int is_term(char c) {
-    return (c == '\0' || c == ' ' || c == '\n');
 }
 
 static void** traverse(struct trie_node* n, const char* key, int half, int add)
