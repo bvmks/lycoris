@@ -2,10 +2,13 @@
 #define _MS_COMM_PARSER_H
 
 #include "trie.h"
+#include "crypdf.h"
 
-enum ms_ccom_type{
+enum ms_ccmd_type{
+    ms_ccmd_undef = -1,
     ms_ccmd_bind,
     ms_ccmd_stat,
+    ms_ccmd_send,
 };
 
 enum ms_cparser_mode{
@@ -14,7 +17,7 @@ enum ms_cparser_mode{
 };
 
 enum ms_cparser_state{
-    ms_cps_init,
+    ms_cps_init = 0,
     ms_cps_reading_header,
     ms_cps_disposing_header,
     ms_cps_reading_body,
@@ -26,58 +29,82 @@ enum ms_cparser_state{
 
 
 enum ms_cparser_res{
-    ms_cp_res_want_more,
     ms_cp_res_finished,
+    ms_cp_res_want_more,
     ms_cp_res_fatal,
     ms_cp_res_error,
 };
 
+enum {
+    ms_conn_iport_undef = -1,
+    ms_conn_iport_all = 0,
+
+    ms_conn_iport_max = 16,
+};
+
+
+union resolved_addr{
+    enum {
+        stat_resolve_ipport,
+        stat_resolve_name,  /* by configured peer name*/
+        stat_resolve_dns,
+    } addr_resolve_type;
+
+    unsigned int ip;
+    unsigned short port;
+    char name[node_name_max_size + 1];
+};
+
 struct ms_ccmd {
-    enum ms_ccom_type type;
-    unsigned int iport;
-    unsigned char *body_buf;
-    unsigned long long body_len;
-    unsigned long long body_bytes_read;
+    enum ms_ccmd_type type;
+    union {
+        struct {
+            unsigned int iport;
+        } bind;
+
+        struct {
+            union resolved_addr addr;
+        } stat;
+
+        struct {
+            union resolved_addr addr;
+            long long msg_len;
+
+            unsigned char *body;
+            unsigned long long body_len;
+            unsigned long long body_bytes_read;
+        } send;
+    } u;
 };
 
 struct ms_cparser {
     enum ms_cparser_state state;
     enum ms_cparser_mode mode;
     struct trie cmd_trie;
+    struct ms_ccmd* target;
     
-    unsigned char line_buf[1024];
+    unsigned char buf[1024];
     unsigned long long buf_used;
-    
-    unsigned long long direct_wanted_bytes;
-    void *direct_ptr;
 };
 
 struct ms_ccmd* make_cmd();
-void cmd_reset(struct ms_ccmd* cmd);
+
+/*clears cmd and inits it for new desired type*/
+void cmd_init(struct ms_ccmd* cmd, int typy);
 void dispose_cmd(struct ms_ccmd* cmd);
 
-/* creates and fills search tree*/
-int ms_cparser_init(struct ms_cparser* cp, int start_mode);
+/* aside from state and mode initiation also fills search tree*/
+int ms_cparser_init(struct ms_cparser* cp, struct ms_ccmd* target,
+                    int start_mode);
 
 /* before read next command */
 void ms_cparser_reset(struct ms_cparser* cp);
 
 void ms_cparser_switch_mode(struct ms_cparser* cp, int new_mode);
 
-/*  if parser want direct write will return ptr to buf in ms_ccommand 
-    otherwise will return NULL*/
-void* ms_cparser_get_direct(struct ms_cparser *cp);
+int ms_cparser_read(struct ms_cparser* cp, int fd);
 
-/*  if parser want direct write will return num of bytes needed
-    otherwise will return 0*/
-unsigned long long ms_cparser_want_direct(struct ms_cparser *cp);
-
-int ms_cparser_feed(struct ms_cparser* cp, struct ms_ccmd* cmd,
-                    unsigned char* data,
-                    unsigned long long datalen, long long* read,
-                    long long int direct);
-
-/* frees inner allocated bufer if it is*/
+/* frees tree*/
 void ms_cparser_cleanup(struct ms_cparser* cp);
 
 #endif
