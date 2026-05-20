@@ -488,7 +488,7 @@ static void add_configured_peers(struct ms_peer_collection* col)
             peer->the_conf_by_id = conf;
             memcpy(peer->node_id, conf->node_id, node_id_size);
         }
-        peer->init_assoc = 0;
+        peer->init_assoc = 1;
         peer->assoc_status = as_none;
         enlist_permpeer(col, peer);
     }
