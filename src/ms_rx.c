@@ -587,8 +587,8 @@ static void handle_echo_reply(struct ms_udp_receiver* rx,
         return;
     default:
         log_msg(llv_debug,
-                "unknown value (%02x) for assoc status of %s",
-                assoc_status, peer_description(peer));
+                "handle_echo_reply: unknown value %s (%02x) for assoc status of %s",
+                assoc_status_str(assoc_status), assoc_status, peer_description(peer));
         return;
     }
 
@@ -713,8 +713,8 @@ static void handle_assoc_request(struct ms_udp_receiver* rx,
         return;
     default:
         log_msg(llv_debug,
-                "unknown value (%02x) for assoc status of %s",
-                assoc_status, peer_description(peer));
+                "handle_assoc_request: unknown value %s (%02x) for assoc status of %s",
+                assoc_status_str(assoc_status), assoc_status, peer_description(peer));
         return;
     }
 
@@ -838,8 +838,8 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
         return;
     default:
         log_msg(llv_debug,
-                "unknown value (%02x) for assoc status of %s",
-                assoc_status, peer_description(peer));
+                "handle_assoc_fini: unknown value %s (%02x) for assoc status of %s",
+                assoc_status_str(assoc_status), assoc_status, peer_description(peer));
         return;
     }
 
