@@ -4,16 +4,19 @@
 #include "trie.h"
 #include "crypdf.h"
 
+struct ms_con_session;
+
 enum ms_ccmd_type{
-    ms_ccmd_undef = -1,
-    ms_ccmd_bind,
+    ms_ccmd_undef,
+    ms_ccmd_bind ,
     ms_ccmd_chmod,
     ms_ccmd_stat,
     ms_ccmd_send,
+    ms_ccmd_close,
 };
 
 enum ms_cparser_mode{
-    ms_cpm_undef,
+    ms_cpm_undef = -1,
     ms_cpm_text,
     ms_cpm_binary,
 };
@@ -21,7 +24,6 @@ enum ms_cparser_mode{
 enum ms_cparser_state{
     ms_cps_init = 0,
     ms_cps_reading_header,
-    ms_cps_disposing_header,
     ms_cps_reading_body,
     ms_cps_disposing_body,
     ms_cps_fin,
@@ -31,11 +33,12 @@ enum ms_cparser_state{
 
 
 enum ms_cparser_res{
-    ms_cp_res_unknown,
+    ms_cp_res_unknown = -1,
     ms_cp_res_finished,
     ms_cp_res_want_more,
     ms_cp_res_fatal,
     ms_cp_res_error,
+    ms_cp_res_conn_closed,
 };
 
 enum {
@@ -45,6 +48,8 @@ enum {
     ms_conn_iport_max = 16,
 
     parser_inner_buf_size = 4000,
+    
+    mode_str_max_len = 15,
 };
 
 
@@ -73,7 +78,7 @@ struct ms_ccmd {
         } stat;
 
         struct {
-            int new_mode;
+            char new_mode_str[mode_str_max_len + 1];
         } chmod;
 
         struct {
@@ -84,19 +89,26 @@ struct ms_ccmd {
             unsigned long long body_len;
             unsigned long long body_bytes_read;
         } send;
+
+        struct {
+            int code;
+        } close;
     } u;
 };
 
 struct ms_cparser {
     enum ms_cparser_state state;
     enum ms_cparser_mode mode;
-    struct trie cmd_trie;
     struct ms_ccmd* target;
+    struct ms_con_session* the_session;
     
     unsigned char buf[parser_inner_buf_size];
-    unsigned char* buf_p;
+    unsigned int buf_p;
     unsigned int buf_used;
 };
+
+void fill_cmd_trie();
+void clear_cmd_trie();
 
 struct ms_ccmd* make_cmd();
 
@@ -106,6 +118,7 @@ void dispose_cmd(struct ms_ccmd* cmd);
 
 /* aside from state and mode initiation also fills search tree*/
 int ms_cparser_init(struct ms_cparser* cp, struct ms_ccmd* target,
+                    struct ms_con_session* ses,
                     int start_mode);
 
 /* before read next command */

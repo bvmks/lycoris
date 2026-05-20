@@ -208,7 +208,9 @@ int main(int argc, char** argv)
     process_cmdline(argc, argv, &args);
 
 
-    log_msg(llv_alert, "Starting ms node vers." MS_VERSION);
+    log_msg(llv_alert, 
+            "Starting ms node vers. " MS_VERSION 
+            " (compiled " __DATE__ ")");
 
     sue_alloc_init_default();
     sue_sel_init(&selector);

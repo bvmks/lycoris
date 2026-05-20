@@ -26,7 +26,7 @@ static void traverse_clear(struct trie_node* node)
     free(node);
 }
 
-static void** traverse(struct trie_node* n, const char* key, int half, int add)
+static void** traverse(struct trie_node* n, const char* key, int half, int add, int* depth)
 {
     struct trie_node** tmp;
     int idx;
@@ -42,7 +42,10 @@ static void** traverse(struct trie_node* n, const char* key, int half, int add)
     }
     if(!*tmp)
         *tmp = make_node();
-    return traverse(*tmp, half ? key+1 : key, !half, add);
+
+    if(depth)
+        (*depth)++;
+    return traverse(*tmp, half ? key+1 : key, !half, add, depth);
 }
 
 static int has_children(struct trie_node* n) 
@@ -102,10 +105,22 @@ void trie_clear(struct trie* t)
     t->root = NULL;
 }
 
+void* trie_get_with_len(struct trie* t, const char* key, int* out_len)
+{
+    void** res;
+    int depth = 0;
+    res = traverse(t->root, key, 0, 0, &depth);
+    if(out_len)
+        *out_len = depth/2;
+    if(!res)
+        return NULL;
+    return *res ? *res : NULL;
+}
+
 void* trie_get(struct trie* t, const char* key) 
 {
     void** res;
-    res = traverse(t->root, key, 0, 0);
+    res = traverse(t->root, key, 0, 0, NULL);
     if(!res)
         return NULL;
     return *res ? *res : NULL;
@@ -115,7 +130,7 @@ void** trie_provide(struct trie* t, const char* key)
 {
     if(!t->root)
         t->root = make_node();
-    return traverse(t->root, key, 0, 1);
+    return traverse(t->root, key, 0, 1, NULL);
 }
 
 int trie_delete(struct trie* t, const char *key) 

@@ -15,6 +15,8 @@ struct trie {
 void trie_init(struct trie* t);
 void trie_clear(struct trie* t);
 
+void* trie_get_with_len(struct trie* t, const char* key, int* out_len);
+
 void* trie_get(struct trie* t, const char* key);
 void** trie_provide(struct trie* t, const char* key);
 int trie_delete(struct trie* t, const char *key);
