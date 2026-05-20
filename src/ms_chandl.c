@@ -63,7 +63,7 @@ static struct ms_ccmd_result* handle_bind(struct ms_cparser* cp, struct ms_ccmd*
         return make_result(cmd->type, ms_ccmd_rc_opdeny);
     }
 
-    if(bind_port > ms_conn_iport_max || bind_port <= ms_conn_iport_undef) {
+    if(bind_port > ms_conn_iport_max || bind_port <= ms_conn_iport_all) {
         log_msg(llv_debug, 
                 "CONTROL SESSION [%d][%s]: BIND ERR invalid port (%d)",
                 ses->id, 
