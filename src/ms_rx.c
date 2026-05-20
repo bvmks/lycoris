@@ -677,6 +677,7 @@ static void handle_assoc_request(struct ms_udp_receiver* rx,
     assoc_status = peer_assoc_status(peer);
     switch (assoc_status) {
     case as_none: /* that's good*/
+    case as_assoc_request_sent: /*ok, will try*/
     case as_echo_request_sent:
     break;
     case as_assoc_fini_sent: /* maybe they lost out fini, so let's try resending */
