@@ -33,6 +33,7 @@ static int txt_parse_bind_ccmd(struct ms_cparser* cp, const char* args) {
                 "CONTROL SESSION [%d][%s]: BIND command doesn't have a valid argument",
                 ses->id, 
                 ses->bound ? decimal2a(ses->iport) : "-");
+        send_code(ses, ms_ccmd_rc_parse_error);
         return ms_cp_res_error;
     }
     cp->target->type = ms_ccmd_bind;
@@ -50,6 +51,7 @@ static int txt_parse_chmod_ccmd(struct ms_cparser* cp, const char* args) {
                 "CONTROL SESSION [%d][%s]: CHMOD command doesn't have a valid argument",
                 ses->id, 
                 ses->bound ? decimal2a(ses->iport) : "-");
+        send_code(ses, ms_ccmd_rc_parse_error);
         return ms_cp_res_error;
     }
     tar->type = ms_ccmd_chmod;

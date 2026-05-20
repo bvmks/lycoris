@@ -11,7 +11,7 @@ STATIC =
 INCPATH = -I../lib
 CFLAGS = -O0 -Wall -g $(INCPATH) $(CONF) $(STATIC)
 
-TARGETS = msnode
+TARGETS = msnode mskndb
 
 #INSTALLPATH = /usr/local/bin/
 
@@ -21,8 +21,11 @@ NODE_OBJS = msnode.o fileutils.o message.o ms_rx.o \
 			ms_txq.o ms_peers.o hexdata.o addrcol.o\
 			ms_kndb.o unitable.o log.o rep.o ms_con.o\
 			ms_chandl.o ms_cparser.o trie.o utils.o\
+			stupid_peers_parser.o\
 			../lib/monocypher/libmonocypher.a \
 			../lib/sue/libsue.a
+
+KNDB_OBJS = mskndb.o ms_kndb.o log.o hexdata.o fileutils.o\
 
 #MSCTL_OBJS = msctl.o 
 
@@ -37,6 +40,8 @@ all:	$(TARGETS)
 
 
 msnode:	$(NODE_OBJS)
+
+mskndb:	$(KNDB_OBJS)
 
 
 install:

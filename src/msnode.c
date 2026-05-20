@@ -1,25 +1,17 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <sys/time.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <time.h>
-#include <sys/select.h>
 
 #include <sue/sue_base.h>
 #include <sue/sue_aloc.h>
 
 
+#include "stupid_peers_parser.h"
 #include "fileutil.h"
 #include "log.h"
 #include "ms_rx.h"
 #include "ms_nodecfg.h"
-#include "ms_peers.h"
 
 #include "ms_sig.h"
 #include "ms_lh.h"
-#include "ms_rx.h"
 #include "ms_con.h"
 
 #include "_version.h"
@@ -203,7 +195,7 @@ int main(int argc, char** argv)
     struct ms_control_receiver* ctl_receiver = NULL;
     int res;
 
-    setup_stderr_log(llv_debug | llv_private);
+    setup_stderr_log(llv_debug);
 
     process_cmdline(argc, argv, &args);
 
@@ -220,12 +212,28 @@ int main(int argc, char** argv)
      * i will make (steal) text parser for cfg loading later (maybe)
     */
     ensure_wdir();
-    node_cfg = make_node_def_cfg();
+    node_cfg = make_node_cfg();
+    res = read_node_cfg_file(node_cfg, args.config_file);
+    if(!res) {
+        log_msg(llv_alert, 
+                "failed to load config file (%s)",
+                args.config_file);
+        return 1;
+    }
+
+    settle_keys_dir(node_cfg);
+    settle_kndb_dir(node_cfg);
+    settle_peerscfg_path(node_cfg);
+    node_cfg->has_control_sock = 1;
+    settle_ctlsock_path(node_cfg);
+    node_cfg->first_peer = parse_peers_file(node_cfg->peers_cfg_file);
 
     if(args.test_p)
         node_cfg->listen_port = def_port2;
     else
         node_cfg->listen_port = def_port;
+
+
 
     receiver = make_udp_receiver(&selector, node_cfg);
     if(!receiver) {

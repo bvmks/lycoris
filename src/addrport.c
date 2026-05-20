@@ -13,12 +13,16 @@ void ipport2str(char *str, unsigned int ip, unsigned short port)
                  port);
 }
 
-void str2ipport(unsigned int *ip, unsigned short *port, const char* str)
+int str2ipport(unsigned int *ip, unsigned short *port, const char* str)
 {
     static char str_ip[sizeof("255.255.255.255")], str_port[sizeof("65535")];
-    sscanf(str, "%[0-9.]:%s", str_ip, str_port);
-    str2ip(ip, str_ip);
-    str2port(port, str_port);
+    if(sscanf(str, "%15[0-9.]:%5s", str_ip, str_port) != 2)
+        return 0;
+    if(!str2ip(ip, str_ip))
+        return 0;
+    if(!str2port(port, str_port))
+        return 0;
+    return 1;
 }
 
 int addrport_equal(const struct addrport* a, const struct addrport* b)
@@ -26,16 +30,28 @@ int addrport_equal(const struct addrport* a, const struct addrport* b)
     return(a->addr == b->addr && a->port == b->port);
 }
 
-void str2ip(unsigned int *ip, const char* str)
+int str2ip(unsigned int *ip, const char* str)
 {
-    struct in_addr i;
-    inet_aton(str, &i);
-    *ip = ntohl(i.s_addr);
+    unsigned char b0, b1, b2, b3;
+    if (sscanf(str, "%hhu.%hhu.%hhu.%hhu", &b0, &b1, &b2, &b3) != 4)
+        return 0;
+
+    *ip = ((unsigned int)b0 << 24) | 
+          ((unsigned int)b1 << 16) | 
+          ((unsigned int)b2 <<  8) | 
+          (unsigned int)b3;
+    return 1;
 }
 
-void str2port(unsigned short *port, const char* str)
+/* bool */
+int str2port(unsigned short *port, const char* str)
 {
-    *port = atoi(str);
+    unsigned short p;
+
+    if (sscanf(str, "%hu", &p) != 1) 
+        return 0;
+    *port = p;
+    return 1;
 }
 
 void addrport2str(char *str, const struct addrport *ap)

@@ -15,6 +15,12 @@ enum {
 
 enum {peer_name_length_limit = 60};
 
+enum ms_peer_type {
+    mspt_undef = -1,
+    mspt_peer,
+    mspt_server,
+};
+
 struct peer_conf {
     char name[peer_name_length_limit + 1];
     int type;
@@ -35,6 +41,7 @@ struct ms_node_cfg {
 
     char* kndb_dir;
     char* keys_dir;
+    char* peers_cfg_file;
 
     int has_control_sock;
     char* control_sock_path;
@@ -52,4 +59,14 @@ struct ms_node_cfg* make_node_def_cfg();
 int read_node_cfg_file(struct ms_node_cfg* cfg, const char* fname);
 
 void dispose_node_cfg(struct ms_node_cfg* cfg);
+
+
+void settle_keys_dir(struct ms_node_cfg* cfg);
+
+void settle_kndb_dir(struct ms_node_cfg* cfg);
+
+void settle_ctlsock_path(struct ms_node_cfg* cfg);
+
+void settle_peerscfg_path(struct ms_node_cfg* cfg);
+
 #endif

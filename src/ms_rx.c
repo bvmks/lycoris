@@ -1228,30 +1228,8 @@ static void the_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 static void the_timeout_hdl(struct sue_timeout_handler *hdl)
 {
     struct ms_udp_receiver *rx = hdl->userdata;
-    /* todo: */
-    static int t = 1;
 
     log_msg(llv_debug2, "the_timeout_hdl called");
-
-#if 1
-    /* TODO: UDALI NAHUI */
-    if(t) {
-        dbug_print_all_peers(rx->peers);
-        if(rx->the_cfg->listen_port == 24881) {
-            unsigned int ip;
-            unsigned short port = 24880 ;
-            str2ip(&ip, "127.0.0.1");
-            struct ms_peer* peer = get_peer_record(rx->peers, ip, port, 0);
-            if(!peer) {
-                log_msg(llv_alert, "WTF?");
-                exit(1);
-            }
-            peer_set_init_assoc(peer);
-            peer_set_assoc_status(peer, as_none);
-        }
-        t = 0;
-    }
-#endif
 
     peers_timer_hook(rx->peers);
 
@@ -1267,27 +1245,6 @@ static void enlist_peer_conf(struct peer_conf** list, struct peer_conf* conf)
 {
     conf->next = *list;
     *list = conf;
-}
-
-static void add_test_peers(struct ms_node_cfg* cfg, struct ms_udp_receiver* rx)
-{
-    unsigned char* node1 = rx->comctx.identity->node_id;
-    struct peer_conf* conf1;
-    struct peer_conf* conf2;
-
-    conf1 = malloc(sizeof(*conf1));
-    conf2 = malloc(sizeof(*conf2));
-
-    memcpy(conf1->node_id, node1, node_id_size);
-    str2ip(&conf1->ip, "127.0.0.1");
-    strcpy(conf1->name, "bebra");
-    conf1->port = 24880;
-    enlist_peer_conf(&cfg->first_peer, conf1);
-
-    // memcpy(conf2->node_id, node1, node_id_size);
-    // str2ip(&conf2->ip, "127.0.0.1");
-    // conf2->port = def_port2;
-    // enlist_peer_conf(&cfg->first_peer, conf2);
 }
 
 struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct ms_node_cfg* cfg)
@@ -1324,17 +1281,10 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
         return NULL;
     }
 
-    add_test_peers(cfg, rx);
-
-    rx->kndb = load_kndb(cfg);
+    rx->kndb = make_kndb(cfg->kndb_dir);
 
     rx->peers = make_peer_collection(rx, rx->the_cfg, &rx->comctx);
     rx->txq = make_transmit_queue(s);
-
-    #if 1
-    test_init_kndb(rx->kndb, rx->comctx.identity->node_id, rx->comctx.identity->master_public_key);
-    #endif
-
 
     log_msg(llv_debug, "udp_receiver initialized", 
                  hexdata2a(rx->comctx.identity->node_id, node_id_size));
@@ -1347,15 +1297,6 @@ struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct m
 
     return rx;
 }
-
-
-#if 0
-int load_node_cfg(struct ms_udp_receiver* rx, const char* fname)
-{
-    rx->the_cfg = make_node_cfg();
-    return read_node_cfg_file(rx->the_cfg, fname);
-}
-#endif
 
 int start_udp_receiver(struct ms_udp_receiver *rx)
 {

@@ -22,11 +22,11 @@ int addrport_equal(const struct addrport* a, const struct addrport* b);
 
 void ipport2str(char *str, unsigned int ip, unsigned short port);
 
-void str2ipport(unsigned int *ip, unsigned short *port, const char* str);
+int str2ipport(unsigned int *ip, unsigned short *port, const char* str);
 
-void str2ip(unsigned int *ip, const char* str);
+int str2ip(unsigned int *ip, const char* str);
 
-void str2port(unsigned short *port, const char* str);
+int str2port(unsigned short *port, const char* str);
 
 const char *ipport2a(unsigned int ip, unsigned short port);
 

@@ -154,21 +154,21 @@ static int check_process_parsing_result(int res, struct ms_cparser* parser) {
     return 0;
 }
 
-static void session_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
+static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
     struct ms_con_session* ses = h->userdata;
     struct ms_cparser* parser = &ses->parser;
     int res;
 
     log_msg(llv_debug2, 
-            "CONTROL SESSION [%d][%s]: session_fd_handler called (%s)(%s)", 
+            "CONTROL SESSION [%d][%s]: control_fd_handler called (%s)(%s)", 
             ses->id, 
             ses->bound ? decimal2a(ses->iport) : "-",
             r ? "r" : "-" , w ? "w" : "-");
 
     if(!r || w || x) {
         log_msg(llv_alert,
-                "CONTROL SESSION [%d][%s]: session_fd_handler: unexpected combination %d %d %d",
+                "CONTROL SESSION [%d][%s]: control_fd_handler: unexpected combination %d %d %d",
                 ses->id, 
                 ses->bound ? decimal2a(ses->iport) : "-",
                 r, w, x);
@@ -220,7 +220,7 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
     ses->fdh.want_write = 0;
     ses->fdh.want_except = 0;
     ses->fdh.userdata = ses;
-    ses->fdh.handle_fd_event = &session_fd_handler;
+    ses->fdh.handle_fd_event = &control_fd_handler;
     ses->to_close = 0;
     ses->log = NULL;
     ses->stream = fdopen(fd, "w");

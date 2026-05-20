@@ -1,5 +1,6 @@
 #include <stdlib.h>
 
+#include "stupid_peers_parser.h"
 #include "ms_nodecfg.h"
 #include "fileutil.h"
 #include "keyutils.h"
@@ -23,8 +24,9 @@ struct ms_node_cfg* make_node_cfg()
     p->listen_ip = ntohl(mscfg_def_ip);
     p->listen_port = mscfg_def_port;    
 
-    p->kndb_dir = NULL;
     p->keys_dir = NULL;
+    p->kndb_dir = NULL;
+    p->peers_cfg_file = NULL;
 
     p->has_control_sock = 0;
     p->control_sock_path = NULL;
@@ -41,8 +43,6 @@ void dispose_node_cfg(struct ms_node_cfg *p)
 {
     if(p->keys_dir)
         free(p->keys_dir);
-    if(p->kndb_dir)
-        free(p->kndb_dir);
     while(p->first_peer) {
         struct peer_conf *tmp = p->first_peer;
         p->first_peer = p->first_peer->next;
@@ -51,31 +51,27 @@ void dispose_node_cfg(struct ms_node_cfg *p)
     free(p);
 }
 
-static void settle_keys_dir(struct ms_node_cfg* cfg)
+void settle_keys_dir(struct ms_node_cfg* cfg)
 {
     settle_localpath(&cfg->keys_dir, ".ms/keys");
 }
 
-static void settle_kndb_dir(struct ms_node_cfg* cfg)
+void settle_kndb_dir(struct ms_node_cfg* cfg)
 {
-    settle_localpath(&cfg->kndb_dir, ".ms/known.db");
+    settle_localpath(&cfg->kndb_dir, ".ms/kndb");
 }
 
-static void settle_ctlsock_path(struct ms_node_cfg* cfg)
+void settle_ctlsock_path(struct ms_node_cfg* cfg)
 {
     settle_localpath(&cfg->control_sock_path, ".ms/ctlsock");
 }
 
-struct ms_node_cfg* make_node_def_cfg()
+void settle_peerscfg_path(struct ms_node_cfg* cfg)
 {
-    struct ms_node_cfg* n;
-    n = make_node_cfg();
-
-    settle_keys_dir(n);
-    settle_kndb_dir(n);
-
-    n->has_control_sock = 1;
-    settle_ctlsock_path(n);
-    return n;
+    settle_localpath(&cfg->peers_cfg_file, ".ms/peers.conf");
 }
 
+int read_node_cfg_file(struct ms_node_cfg* cfg, const char* fname)
+{
+    return 1;
+}
