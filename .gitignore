@@ -1,5 +1,8 @@
 # ./test/
 
+src/msnode
+src/mskndb
+
 *.o
 *.a
 *.mk

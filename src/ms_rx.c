@@ -267,7 +267,7 @@ static void send_assoc_request(struct ms_udp_receiver* rx, struct ms_peer* peer)
     timemark = cookie + cookie_size;
 
     u64_to_big_endian(token, peer_token(peer));
-    memcpy(id, peer_id(peer), node_id_size);
+    memcpy(id, rx->comctx.identity->node_id, node_id_size);
     memcpy(kex, rx->comctx.kex_public, kex_public_size);
     memcpy(cookie, peer_cookie(peer), cookie_size);
     u64_to_big_endian(timemark, timemark_sec(rx->peers));
