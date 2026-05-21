@@ -1357,15 +1357,13 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
     case as_none:
         if(!peer_should_init_assoc(peer))
             return;
-        send_echo_request(rx, peer);
         peer_set_assoc_status(peer, as_echo_request_sent);
+        send_echo_request(rx, peer);
         return;
     case as_echo_request_sent:
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
         send_echo_request(rx, peer);
-        log_msg(llv_debug, "resending echo_request for %s",
-                ipport2a(ip, port));
         return;
     case as_assoc_request_sent:
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
@@ -1376,8 +1374,6 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
             peer_set_assoc_status(peer, as_none);
             return;
         }
-        log_msg(llv_debug, "resending assoc_request for %s",
-                ipport2a(ip, port));
         send_assoc_request(rx, peer);
         return;
     case as_assoc_fini_sent:
@@ -1389,8 +1385,6 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
             peer_set_assoc_status(peer, as_none);
             return;
         }
-        log_msg(llv_debug, "resending assoc_fini for %s",
-                ipport2a(ip, port));
         send_assoc_fini(rx, peer);
         return;
     case as_established:

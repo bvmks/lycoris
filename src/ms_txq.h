@@ -1,6 +1,7 @@
 #ifndef _MS_TXQ_H
 #define _MS_TXQ_H
 
+#include "crypdf.h"
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -8,7 +9,7 @@
 
 enum { 
     min_retry_time = 10,
-    min_reset_time = 15,
+    min_reset_time = token_lifetime,
 };
 
 struct ms_peer;
