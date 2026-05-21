@@ -1,44 +1,45 @@
 #ifndef _MS_COMM_PARSER_H
 #define _MS_COMM_PARSER_H
 
-#include "trie.h"
 #include "crypdf.h"
 
-struct ms_con_session;
+struct ms_ctl_session;
 
 enum ms_ccmd_type{
-    ms_ccmd_undef,
-    ms_ccmd_bind ,
-    ms_ccmd_chmod,
-    ms_ccmd_stat,
-    ms_ccmd_send,
-    ms_ccmd_close,
+    ccmd_undef = -1,
+    ccmd_bind ,
+    ccmd_chmod,
+    ccmd_stat,
+    ccmd_send,
+    ccmd_close,
 };
 
-enum ms_cparser_mode{
-    ms_cpm_undef = -1,
-    ms_cpm_text,
-    ms_cpm_binary,
+enum ms_ctlparser_mode{
+    ctlparser_m_undef = -1,
+    ctlparser_m_text,
+    ctlparser_m_binary,
 };
 
-enum ms_cparser_state{
-    ms_cps_init = 0,
-    ms_cps_reading_header,
-    ms_cps_reading_body,
-    ms_cps_disposing_body,
-    ms_cps_fin,
-    ms_cps_fin_error,
-    ms_cps_fin_fatal,
+enum ms_ctlparser_state{
+    ctlparser_s_fin_error = -3,
+    ctlparser_s_fin_fatal = -2,
+    ctlparser_s_init = -1,
+
+    ctlparser_s_fin  = 0,
+
+    ctlparser_s_reading_block,
+    ctlparser_s_disposing_block,
 };
 
 
-enum ms_cparser_res{
-    ms_cp_res_unknown = -1,
-    ms_cp_res_finished,
-    ms_cp_res_want_more,
-    ms_cp_res_fatal,
-    ms_cp_res_error,
-    ms_cp_res_conn_closed,
+enum ms_ctlparser_res{
+    ctlparser_res_conn_closed = -4,
+    ctlparser_res_fatal = -3,
+    ctlparser_res_error = -2,
+    ctlparser_res_undef = -1,
+    ctlparser_res_finished,
+    ctlparser_res_want_more,
+    ctlparser_res_want_to_dispose,
 };
 
 enum {
@@ -68,6 +69,7 @@ union resolved_addr{
 
 struct ms_ccmd {
     enum ms_ccmd_type type;
+    enum ms_ctlparser_res parse_res;
     union {
         struct {
             int iport;
@@ -96,11 +98,20 @@ struct ms_ccmd {
     } u;
 };
 
+struct ms_ccmd_result {
+    enum ms_ccmd_type type;
+    union {
+
+    }u;
+
+    int code;
+};
+
 struct ms_cparser {
-    enum ms_cparser_state state;
-    enum ms_cparser_mode mode;
+    int state;
+    int mode;
     struct ms_ccmd* target;
-    struct ms_con_session* the_session;
+    struct ms_ctl_session* the_session;
     
     unsigned char buf[parser_inner_buf_size];
     unsigned int buf_p;
@@ -118,7 +129,7 @@ void dispose_cmd(struct ms_ccmd* cmd);
 
 /* aside from state and mode initiation also fills search tree*/
 int ms_cparser_init(struct ms_cparser* cp, struct ms_ccmd* target,
-                    struct ms_con_session* ses,
+                    struct ms_ctl_session* ses,
                     int start_mode);
 
 /* before read next command */

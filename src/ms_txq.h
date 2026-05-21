@@ -9,7 +9,7 @@
 
 enum { 
     min_retry_time = 10,
-    min_reset_time = token_lifetime,
+    reset_time = token_lifetime,
 };
 
 struct ms_peer;
@@ -17,7 +17,7 @@ struct ms_transmit_queue;
 struct sue_event_selector;
 
 struct ms_transmit_item {
-    struct ms_transmit_queue* the_master;
+    struct ms_transmit_queue* master;
     unsigned char* buf;
     int len, offset;
     unsigned int ip;

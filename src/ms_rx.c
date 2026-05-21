@@ -469,6 +469,8 @@ static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
     send_encrypted(rx, peer, &payload, 1);
 }
 
+
+#if 0
 static void send_enc_imalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
 {
     unsigned char payload = ms_cmd_im_alive;
@@ -480,6 +482,7 @@ static void send_enc_imalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
             ipport2a(ip, port));
     send_encrypted(rx, peer, &payload, 1);
 }
+#endif
 
 static void send_change_key_request(struct ms_udp_receiver *rx,
                                     unsigned int ip, unsigned short port,
@@ -950,6 +953,8 @@ static void handle_assoc_fini(struct ms_udp_receiver* rx,
     peer_generate_new_cookie(peer);
     peer_set_last_tm(peer, u64_from_big_endian(timemark));
 
+    // check_add_permpeer(peer);
+
     update_peer_last_rx(peer);
     peer_set_assoc_status(peer, as_established);
     send_enc_keepalive(rx, peer);
@@ -972,6 +977,9 @@ static void handle_change_key_request(struct ms_udp_receiver *rx,
     }
 
     assoc_status = peer_assoc_status(peer);
+    switch (assoc_status) {
+    
+    }
 }
 
 
@@ -1025,7 +1033,9 @@ static void handle_enc_keepalive(struct ms_udp_receiver* rx,
 {
     log_msg(llv_debug, "received keepalive from %s",
                                 peer_description(peer));
+#if 0 /* if they need they will send us keepalive */
     send_enc_imalive(rx, peer);
+#endif
 }
 
 static void handle_enc_imalive(struct ms_udp_receiver* rx,
@@ -1242,12 +1252,6 @@ static void the_timeout_hdl(struct sue_timeout_handler *hdl)
     sue_sel_register_timeout(rx->the_selector, &rx->tmoh);
 }
 
-static void enlist_peer_conf(struct peer_conf** list, struct peer_conf* conf)
-{
-    conf->next = *list;
-    *list = conf;
-}
-
 struct ms_udp_receiver* make_udp_receiver(struct sue_event_selector* s, struct ms_node_cfg* cfg)
 {
     struct ms_udp_receiver* rx;
@@ -1346,7 +1350,7 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
     assoc_status = peer_assoc_status(peer);
     log_msg(llv_debug2, 
             "peer %s since_last_rx/tx %d/%d (st: %s)",
-            ipport2a(ip, port), 
+            peer_description(peer), 
             since_last_rx, since_last_tx,
             assoc_status_str(assoc_status));
 
@@ -1361,36 +1365,42 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
         send_echo_request(rx, peer);
         return;
     case as_echo_request_sent:
+        if(since_last_rx > rx->the_cfg->peer_timeout) {
+            log_msg(llv_debug, "giving up association with %s",
+                    peer_description(peer));
+            peer_set_assoc_status(peer, as_gave_up);
+            return;
+        }
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
         send_echo_request(rx, peer);
         return;
     case as_assoc_request_sent:
-        if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
-            return;
-        if(since_last_rx > min_reset_time) {
+        if(since_last_rx > reset_time) {
             log_msg(llv_debug, "resetting association with %s",
-                    ipport2a(ip, port));
+                    peer_description(peer));
             peer_set_assoc_status(peer, as_none);
             return;
         }
+        if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
+            return;
         send_assoc_request(rx, peer);
         return;
     case as_assoc_fini_sent:
-        if (since_last_rx < since_last_tx || since_last_tx < min_retry_time)
-            return;
-        if(since_last_rx > min_reset_time) {
+        if(since_last_rx > reset_time) {
             log_msg(llv_debug, "resetting association with %s",
-                    ipport2a(ip, port));
+                    peer_description(peer));
             peer_set_assoc_status(peer, as_none);
             return;
         }
+        if (since_last_rx < since_last_tx || since_last_tx < min_retry_time)
+            return;
         send_assoc_fini(rx, peer);
         return;
     case as_established:
         if(since_last_rx > rx->the_cfg->peer_timeout) {
             log_msg(llv_info, "association with %s seems dead",
-                    ipport2a(ip, port));
+                    peer_description(peer));
             peer_set_assoc_status(peer, as_none);
             return;
         }

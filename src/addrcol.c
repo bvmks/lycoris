@@ -38,7 +38,7 @@ static void ic_cr (struct ut_node* n, const void* key)
     struct addr_item *item = malloc(sizeof(*item));
     /* it's a bit stupid that we creating it here, and only set key
     but at least there's no additionall malloc for key*/
-    item->the_master = NULL;
+    item->master = NULL;
     n->userdata = item;
     n->key = item->key;
 }
@@ -77,7 +77,7 @@ struct addr_item* addrcoll_find(struct addr_collection* coll,
 
     if(add) {
         struct addr_item* item = *unitable_provide(&coll->map, key);
-        if(item->the_master) {
+        if(item->master) {
             return item;
         } else {
             item->next = NULL;
@@ -88,7 +88,7 @@ struct addr_item* addrcoll_find(struct addr_collection* coll,
                 coll->first = item;
             coll->last = item;
 
-            item->the_master = coll;
+            item->master = coll;
             memcpy(item->key, key, ipport_len);
             item->timemark = coll->curtime;
             item->userdata = NULL;
@@ -121,9 +121,15 @@ static void do_remove_from_list(struct addr_collection *coll,
     item->prev = NULL;
 }
 
+
+void addritem_update(struct addr_item *item)
+{
+    item->timemark = item->master->curtime;
+}
+
 void addritem_reset(struct addr_item *item)
 {
-    struct addr_collection *coll = item->the_master;
+    struct addr_collection *coll = item->master;
 
     do_remove_from_list(coll, item);
     item->timemark = coll->curtime;
@@ -135,24 +141,24 @@ void addritem_reset(struct addr_item *item)
     coll->last = item;
 }
 
-struct addr_item* addrcoll_permadd(struct addr_collection *coll,
-                                       unsigned int ip, unsigned short port)
+struct addr_item* addrcoll_permadd(struct addr_collection *col,
+                                   unsigned int ip, unsigned short port)
 {
     unsigned char key[ipport_len];
     struct addr_item *item;
 
     ipport2mem(key, ip, port);
 
-    item = *unitable_provide(&coll->map, key);
-    if(item->the_master) {
-        do_remove_from_list(coll, item);
+    item = *unitable_provide(&col->map, key);
+    if(item->master) {
+        do_remove_from_list(col, item);
     } else {
         item->next = NULL;
         item->prev = NULL;
 
-        item->the_master = coll;
+        item->master = col;
         memcpy(item->key, key, sizeof(key));
-        item->timemark = coll->curtime;
+        item->timemark = col->curtime;
         item->userdata = NULL;
         item->timeout_hook = NULL;
         item->destruction_hook = NULL;
@@ -168,7 +174,7 @@ void addritem_getaddr(struct addr_item *item,
 
 void addritem_remove(struct addr_item *item)
 {
-    struct addr_collection *coll = item->the_master;
+    struct addr_collection *coll = item->master;
 
     do_remove_from_list(coll, item);
     unitable_delete(&coll->map, item->key);

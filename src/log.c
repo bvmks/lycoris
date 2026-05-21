@@ -71,7 +71,8 @@ static const char * const month_names[] = {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 };
 
-enum {log_head_padding = 8};
+enum {log_head_padding = sizeof("[DEBUG] [21-May 09:09:09] ") - 1};
+/* yes, it's stupid! but i dgaf :-) */
 
 static int compose_msg_head(char* buf, int level, int bald)
 {
@@ -85,12 +86,10 @@ static int compose_msg_head(char* buf, int level, int bald)
     else {
         tt = time(NULL);
         gmt = gmtime(&tt);
-        return sprintf(buf, "%s [%02d:%02d:%02d %02d-%3.3s-%d %ld] ",
+        return sprintf(buf, "%s [%02d-%3.3s %02d:%02d:%02d] ",
                        lvl2a(level),
-                       gmt->tm_hour, gmt->tm_min, gmt->tm_sec,
                        gmt->tm_mday, month_names[gmt->tm_mon],
-                       gmt->tm_year + 1900,
-                       (long)getpid());
+                       gmt->tm_hour, gmt->tm_min, gmt->tm_sec);
     }
 }
 
@@ -99,7 +98,7 @@ void log_msg_vl(int level, int bald, const char *fmt, va_list args)
 {
     static char buf[4096];
     char *message;
-    int len, bufrest, mlen;
+    int len, headlen, bufrest, mlen;
     int do_stderr, do_file;
     struct extra_log *tmp;
 

@@ -19,15 +19,16 @@
 enum { nonce_max_gap = 50 };
 
 struct ms_peer {
-    struct ms_peer_collection *the_master;
+    struct ms_peer_collection *master;
     struct addr_item *the_item;
 
     unsigned int ip;
     unsigned short port;
 
     struct peer_conf *the_conf_by_id, *the_conf_by_ip;
+    char configured; /* bool means it added to permpeers*/
 
-    int init_assoc; /* bool */
+    char init_assoc; /* bool */
     int assoc_status;
 
     unsigned char node_id[node_id_size];
@@ -93,6 +94,7 @@ void dbug_print_all_peers(struct ms_peer_collection* col)
         }
     }
 }
+
 
 void peers_timer_hook(struct ms_peer_collection* col)
 {
@@ -211,7 +213,7 @@ static void mspeer_destruction_hook(struct addr_item* item)
         struct ms_peer *p = item->userdata;
         log_msg(llv_debug, "removing peer %s",
                 peer_description(p));
-        ms_rx_peer_gone(p->the_master->the_rx, p);
+        ms_rx_peer_gone(p->master->the_rx, p);
         free(item->userdata);
     } else {
         unsigned int ip;
@@ -236,7 +238,7 @@ static void peer_init(struct ms_peer_collection* col, struct addr_item* item)
 
     peer = malloc(sizeof(*peer));
     memset(peer, 0, sizeof(*peer));
-    peer->the_master = col;
+    peer->master = col;
     peer->the_item = item;
     peer->ip = ip;
     peer->port = port;
@@ -247,10 +249,11 @@ static void peer_init(struct ms_peer_collection* col, struct addr_item* item)
     peer->init_assoc = 0;
     peer->assoc_status = as_none;
 
+    peer->configured = 0;
+
     item->userdata = peer;
     item->timeout_hook = mspeer_timeout_hook;
     item->destruction_hook = mspeer_destruction_hook;
-
 }
 
 int peer_ever_had_assoc(const struct ms_peer* peer)
@@ -406,22 +409,22 @@ void peer_set_assoc_status(struct ms_peer* peer, int status)
 
 void update_peer_last_rx(struct ms_peer* peer)
 {
-    peer->last_rx = peer->the_master->peers.curtime;
+    peer->last_rx = peer->master->peers.curtime;
     if(peer->the_item)
-        addritem_reset(peer->the_item);
+        addritem_update(peer->the_item);
 }
 
 void update_peer_last_tx(struct ms_peer* peer)
 {
-    peer->last_tx = peer->the_master->peers.curtime;
+    peer->last_tx = peer->master->peers.curtime;
     if(peer->the_item)
-        addritem_reset(peer->the_item);
+        addritem_update(peer->the_item);
 }
 
 void peer_get_idle(const struct ms_peer* peer,
                    int *since_last_rx, int *since_last_tx)
 {
-    int curtime = peer->the_master->peers.curtime;
+    int curtime = peer->master->peers.curtime;
 
     if(since_last_rx)
         *since_last_rx = curtime - peer->last_rx;
@@ -474,11 +477,17 @@ static void enlist_permpeer(struct ms_peer_collection* col, struct ms_peer* peer
 static void add_configured_peers(struct ms_peer_collection* col)
 {
     struct peer_conf* conf;
+    int peer_count = 0;
     for(conf = col->the_conf->first_peer; conf; conf = conf->next) {
         struct addr_item* item;
         struct ms_peer* peer;
         if(!peer_conf_has_ip(conf))
             continue;
+        if(conf->ip == col->the_conf->listen_ip &&
+            conf->port == col->the_conf->listen_port) {
+            log_msg(llv_debug, "skipping peer config for ourself ?!");
+            continue;
+        }
         item = addrcoll_permadd(&col->peers, conf->ip, conf->port);
         if(!item->userdata)
             peer_init(col, item);
@@ -488,12 +497,19 @@ static void add_configured_peers(struct ms_peer_collection* col)
             peer->the_conf_by_id = conf;
             memcpy(peer->node_id, conf->node_id, node_id_size);
         }
-        peer->init_assoc = 1;
-        peer->assoc_status = as_none;
+        peer->init_assoc = 0;
+        peer->assoc_status = as_not_desired;
+        peer->configured = 1;
         enlist_permpeer(col, peer);
-    }
-}
+        if(conf->type == ptp_mynode) {
+            peer->init_assoc = 1;
+            peer->assoc_status = as_none;
+        }
 
+        peer_count++;
+    }
+    log_msg(llv_debug, "configured peers added (%d)", peer_count);
+}
 
 struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* rx, 
                                                 struct ms_node_cfg* cfg,
@@ -561,7 +577,7 @@ int peer_set_identity(struct ms_peer* peer,
         return 0;
     }
 
-    for(conf = peer->the_master->the_conf->first_peer; conf; conf = conf->next) {
+    for(conf = peer->master->the_conf->first_peer; conf; conf = conf->next) {
         int have_ip, have_id, match_ip, match_id;
 
         have_ip = peer->ip != PEER_IP_UNDEF;
@@ -636,4 +652,6 @@ void peers_report(struct ms_peer_collection *col, report_callback f, void *ud)
         single_peer_report(fp, col->peers.curtime - ia->timemark, f, ud);
     }
 }
+
+
 

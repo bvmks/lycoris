@@ -21,4 +21,21 @@ void* trie_get(struct trie* t, const char* key);
 void** trie_provide(struct trie* t, const char* key);
 int trie_delete(struct trie* t, const char *key);
 
+enum trie_iter_res {
+    trie_iter_need_more,
+    trie_iter_found,
+    trie_iter_not_found
+};
+
+struct trie_iterator {
+    struct trie_node *current;
+    int half;
+};
+
+void trie_iterator_reset(struct trie_iterator *it, struct trie *t);
+
+int trie_iterator_feed(struct trie_iterator *it, char c);
+
+void* trie_iterator_get_data(const struct trie_iterator *it);
+
 #endif /* MS_TRIE_H */

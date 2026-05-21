@@ -8,7 +8,7 @@ struct addr_collection;
 enum {ipport_len = 6};
 
 struct addr_item {
-    struct addr_collection* the_master;
+    struct addr_collection* master;
     struct addr_item *prev, *next;
 
     unsigned char key[ipport_len];
@@ -36,6 +36,8 @@ int addrcoll_update(struct addr_collection* coll,
                            long long current_time);
 
 void addritem_reset(struct addr_item *item);
+
+void addritem_update(struct addr_item *item);
 
 
 struct addr_item* addrcoll_find(struct addr_collection* coll,

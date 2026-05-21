@@ -4,16 +4,16 @@
 #include <stdio.h>
 #include <sue/sue_base.h>
 
-#include "ms_cparser.h"
+#include "ms_ctlpar.h"
 
 struct sue_event_selector;
 struct ms_node_cfg;
 struct ms_udp_receiver;
 
-struct ms_con_session {
-    struct ms_con_session* next;
+struct ms_ctl_session {
+    struct ms_ctl_session* next;
 
-    struct ms_control_receiver *the_master;
+    struct ms_control_receiver *master;
     struct sue_fd_handler fdh;
     FILE *stream;
 
@@ -39,11 +39,13 @@ struct ms_control_receiver {
     struct ms_node_cfg* the_cfg;
 
     int ses_id_counter;
-    struct ms_con_session* first;
-    struct ms_con_session* ports[ms_conn_iport_max];
+    struct ms_ctl_session* first;
+    struct ms_ctl_session* ports[ms_conn_iport_max];
     char *path;
 };
 
+
+const char* ses_description(struct ms_ctl_session* ses);
 
 struct ms_control_receiver *
 launch_control_receiver(struct sue_event_selector *sel,

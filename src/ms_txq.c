@@ -34,7 +34,7 @@ struct ms_transmit_queue *make_transmit_queue(struct sue_event_selector *s)
 
 void txq_enqueue (struct ms_transmit_item* item)
 {
-    struct ms_transmit_queue *txq = item->the_master;
+    struct ms_transmit_queue *txq = item->master;
     if(txq->qfirst)
         txq->qlast->next = item;
     else
@@ -58,7 +58,7 @@ static struct ms_transmit_item *make_txitem(struct ms_transmit_queue* txq,
     struct ms_transmit_item* res;
 
     res = malloc(sizeof(*res));
-    res->the_master = txq;
+    res->master = txq;
     res->buf = malloc(len);
     res->len = len;
     res->offset = offset;

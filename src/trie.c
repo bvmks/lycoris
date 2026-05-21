@@ -139,6 +139,48 @@ int trie_delete(struct trie* t, const char *key)
     return traverse_delete(t->root, key, 0);
 }
 
+void trie_iterator_reset(struct trie_iterator *it, struct trie *t)
+{
+    it->current = t->root;
+}
+
+int trie_iterator_feed(struct trie_iterator *it, char c)
+{
+    int idx;
+
+    if (!it->current) {
+        return trie_iter_not_found;
+    }
+
+    idx = (c >> 4) & 0x0f;
+    it->current = it->current->a[idx];
+    if (!it->current) {
+        return  trie_iter_not_found;
+    }
+
+    idx = c & 0x0f;
+    it->current = it->current->a[idx];
+    if (!it->current) {
+        return trie_iter_not_found;
+    }
+
+    if (it->current->userdata) {
+        return trie_iter_found;
+    }
+
+    return trie_iter_need_more;
+}
+
+void* trie_iterator_get_data(const struct trie_iterator *it)
+{
+    if (it->current) {
+        return it->current->userdata;
+    }
+    return NULL;
+}
+
+
+
 #ifdef _TEST_TRIE
 
 void cmd_get(void)

@@ -22,7 +22,7 @@ static struct peer_conf* make_peer()
 {
     struct peer_conf* p = malloc(sizeof(*p));
     memset(p, 0, sizeof(*p));
-    p->type = mspt_undef;
+    p->type = ptp_undef;
     return p;
 }
 
@@ -44,11 +44,12 @@ struct peer_conf* parse_peers_file(const char* filename)
     while (fgets(line, sizeof(line), f)) {
         char key[128];
         char val[384];
-        int tokens;
+        int tokens, pos;
             
         line_num++;
-        line[strcspn(line, "\r\n")] = '\0';
-        tokens= sscanf(line, "%127s %383s", key, val);
+        pos = strcspn(line, "\r\n");
+        line[pos] = '\0';
+        tokens = sscanf(line, "%127s %383s", key, val);
         
         if (tokens <= 0 || key[0] == '#') {
             continue;
@@ -101,19 +102,29 @@ struct peer_conf* parse_peers_file(const char* filename)
                 log_msg(llv_alert, "peer_parser: missing value for 'type' at line %d", line_num);
                 continue;
             }
-            if (strcmp(val, "peer") == 0) current->type = mspt_peer;
-            else if (strcmp(val, "server") == 0) current->type = mspt_server;
+            if (strcmp(val, "peer") == 0) current->type = ptp_peer;
+            else if (strcmp(val, "server") == 0) current->type = ptp_server;
+            else if (strcmp(val, "mynode") == 0) current->type = ptp_mynode;
             else {
                 log_msg(llv_alert, "peer_parser: unknown peer type '%s' at line %d", val, line_num);
             }
         } 
-        else if (strcmp(key, "addr") == 0) {
+        else if (strcmp(key, "ip") == 0) {
             if (tokens < 2) {
-                log_msg(llv_alert, "peer_parser: missing value for 'addr' at line %d", line_num);
+                log_msg(llv_alert, "peer_parser: missing value for 'ip' at line %d", line_num);
                 continue;
             }
-            if(!str2ipport(&current->ip, &current->port, val)) {
-                log_msg(llv_alert, "peer_parser: invalid address '%s' at line %d", val, line_num);
+            if(!str2ip(&current->ip, val)) {
+                log_msg(llv_alert, "peer_parser: invalid IP '%s' at line %d", val, line_num);
+            }
+        } 
+        else if (strcmp(key, "port") == 0) {
+            if (tokens < 2) {
+                log_msg(llv_alert, "peer_parser: missing value for 'port' at line %d", line_num);
+                continue;
+            }
+            if(!str2port(&current->port, val)) {
+                log_msg(llv_alert, "peer_parser: invalid PORT '%s' at line %d", val, line_num);
             }
         } 
         else {

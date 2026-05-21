@@ -10,12 +10,11 @@
 #include <arpa/inet.h>
 
 
-#include "ms_con.h"
+#include "ms_ctl.h"
 #include "ms_nodecfg.h"
 #include "log.h"
 #include "ms_rx.h"
-#include "ms_chandl.h"
-#include "utils.h"
+#include "ms_ctlhdl.h"
 
 enum {
     con_sess_buff_size = 1024,
@@ -29,13 +28,24 @@ enum {
     /* inner port numeration starts with 1*/
 };
 
-
-
-static void dispose_session(struct ms_con_session *ses)
+const char* ses_description(struct ms_ctl_session* ses)
 {
-    struct ms_control_receiver *crx = ses->the_master;
+    static char buf[128];
+    char* p = buf;
+    p += sprintf(p, "CLT SES %d", ses->id);
+    if(ses->bound) {
+        *p = ' ';
+        p++;
+        p += sprintf(p, "[%d]", ses->iport);
+    }
+    return buf;
+}
+
+static void dispose_session(struct ms_ctl_session *ses)
+{
+    struct ms_control_receiver *crx = ses->master;
     struct sue_event_selector *sel = crx->the_selector;
-    struct ms_con_session **p;
+    struct ms_ctl_session **p;
 
     sue_sel_remove_fd(sel, &ses->fdh);
     if(ses->log) {
@@ -61,7 +71,7 @@ static void dispose_session(struct ms_con_session *ses)
     }
 }
 
-static void close_session(struct ms_con_session *ses)
+static void close_session(struct ms_ctl_session *ses)
 {
     if(ses->stream)
         fclose(ses->stream);
@@ -113,65 +123,56 @@ static int check_clean_socket(const char *path)
 
 static int check_process_parsing_result(int res, struct ms_cparser* parser) {
     struct ms_ccmd_result* cmd_result;
-    struct ms_con_session* ses = parser->the_session;
-        switch (res) {
-        case ms_cp_res_want_more:
-            return 1;
-        case ms_cp_res_finished:
-            cmd_result = process_ccmd(parser, parser->target);
-            send_response(ses, cmd_result);
-            dispose_cmd_res(cmd_result);
-            ms_cparser_reset(parser);
-            return 1;
-        case ms_cp_res_error:
-            log_msg(llv_debug, 
-                    "CONTROL SESSION [%d][%s]: control command parsing failed",
-                    ses->id, 
-                    ses->bound ? decimal2a(ses->iport) : "-");
-            ms_cparser_reset(parser);
-            return 1;
-        case ms_cp_res_fatal:
-            log_msg(llv_alert, 
-                    "CONTROL SESSION [%d][%s]: control command parsing fatal error",
-                    ses->id, 
-                    ses->bound ? decimal2a(ses->iport) : "-");
-            close_session(ses);
-            return 0;
-        case ms_cp_res_conn_closed:
-            log_msg(llv_debug, 
-                    "CONTROL SESSION [%d][%s]: connection closed",
-                    ses->id, 
-                    ses->bound ? decimal2a(ses->iport) : "-");
-            dispose_session(ses);
-            return 0;
-        }
+    struct ms_ctl_session* ses = parser->the_session;
+    switch (res) {
+    case ctlparser_res_want_more:
+        return 1;
+    case ctlparser_res_finished:
+        cmd_result = process_ccmd(parser, parser->target);
+        send_response(ses, cmd_result);
+        dispose_cmd_res(cmd_result);
+        ms_cparser_reset(parser);
+        return 1;
+    case ctlparser_res_error:
+        log_msg(llv_debug, 
+                "%s: control command parsing failed",
+                ses_description(ses));
+        ms_cparser_reset(parser);
+        return 1;
+    case ctlparser_res_fatal:
+        log_msg(llv_alert, 
+                "%s: control command parsing fatal error",
+                ses_description(ses));
+        close_session(ses);
+        return 0;
+    case ctlparser_res_conn_closed:
+        log_msg(llv_debug, 
+                "%s: connection closed",
+                ses_description(ses));
+        dispose_session(ses);
+        return 0;
+    }
 
     log_msg(llv_alert, 
-            "CONTROL SESSION [%d][%s]: unknown parsing result (%d) (BUG)", 
-            ses->id, 
-            ses->bound ? decimal2a(ses->iport) : "-",
-            res);
+            "%s: unknown parsing result (%d) (BUG)", 
+            ses_description(ses), res);
     return 0;
 }
 
 static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
-    struct ms_con_session* ses = h->userdata;
+    struct ms_ctl_session* ses = h->userdata;
     struct ms_cparser* parser = &ses->parser;
     int res;
 
     log_msg(llv_debug2, 
-            "CONTROL SESSION [%d][%s]: control_fd_handler called (%s)(%s)", 
-            ses->id, 
-            ses->bound ? decimal2a(ses->iport) : "-",
-            r ? "r" : "-" , w ? "w" : "-");
+            "%s: control_fd_handler called (%s)(%s)", 
+            ses_description(ses), r ? "r" : "-" , w ? "w" : "-");
 
     if(!r || w || x) {
         log_msg(llv_alert,
-                "CONTROL SESSION [%d][%s]: control_fd_handler: unexpected combination %d %d %d",
-                ses->id, 
-                ses->bound ? decimal2a(ses->iport) : "-",
-                r, w, x);
+                "%s: control_fd_handler: unexpected combination %d %d %d",
+                ses_description(ses), r, w, x);
         return;
     }
 
@@ -185,7 +186,7 @@ static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         close_session(ses);
 }
 
-static void send_intro(struct ms_con_session* ses)
+static void send_intro(struct ms_ctl_session* ses)
 {
     /*TODO: of course it shoud look into our config, but for now so*/
     fputs("HELLO\nAUTH NO\nMODE TEXT\n\n", ses->stream);
@@ -195,7 +196,7 @@ static void send_intro(struct ms_con_session* ses)
 static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
     struct ms_control_receiver *crx;
-    struct ms_con_session *ses;
+    struct ms_ctl_session *ses;
     int fd;
 
     if(!r || w || x) {
@@ -214,7 +215,7 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 
 
     ses = malloc(sizeof(*ses));
-    ses->the_master = crx;
+    ses->master = crx;
     ses->fdh.fd = fd;
     ses->fdh.want_read = 1;
     ses->fdh.want_write = 0;
@@ -235,12 +236,9 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
     crx->first = ses;
 
     ses->cur_cmd = make_cmd();
-    ms_cparser_init(&ses->parser, ses->cur_cmd, ses, ms_cpm_text);
+    ms_cparser_init(&ses->parser, ses->cur_cmd, ses, ctlparser_m_text);
 
-    log_msg(llv_debug,
-            "NEW CONTROL SESSION [%d][%s]",
-            ses->id, 
-            ses->bound ? decimal2a(ses->iport) : "-");
+    log_msg(llv_debug, "NEW %s", ses_description(ses));
 
     sue_sel_register_fd(crx->the_selector, &ses->fdh);
     send_intro(ses);
@@ -315,10 +313,10 @@ launch_control_receiver(struct sue_event_selector *sel,
 
 void dispose_control_receiver(struct ms_control_receiver *crx)
 {
-    struct ms_con_session* p = crx->first;
+    struct ms_ctl_session* p = crx->first;
 
     while(p) {
-        struct ms_con_session* tmp = p;
+        struct ms_ctl_session* tmp = p;
         p = p->next;
         close_session(tmp);
     }
