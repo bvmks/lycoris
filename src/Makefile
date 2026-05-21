@@ -19,8 +19,9 @@ NODE_OBJS = msnode.o fileutils.o message.o ms_rx.o \
 			ms_nodecfg.o ms_sig.o ms_lh.o ms_nodeid.o\
 			addrport.o ms_comm_ctx.o socks.o keyutils.o\
 			ms_txq.o ms_peers.o hexdata.o addrcol.o\
-			ms_kndb.o unitable.o log.o rep.o ms_con.o\
-			ms_chandl.o ms_cparser.o trie.o utils.o\
+			ms_kndb.o unitable.o log.o rep.o\
+		   	ms_ctl.o ms_ctlhdl.o ms_ctlpar.o\
+			trie.o utils.o\
 			stupid_peers_parser.o\
 			../lib/monocypher/libmonocypher.a \
 			../lib/sue/libsue.a
