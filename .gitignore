@@ -1,7 +1,9 @@
 # ./test/
 
-./src/mskndb
-./src/msnode
+/src/mskndb
+mskndb
+/src/msnode
+msnode
 
 *.o
 *.a
