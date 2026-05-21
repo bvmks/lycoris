@@ -1,7 +1,7 @@
 # ./test/
 
-src/msnode
-src/mskndb
+./src/mskndb
+./src/msnode
 
 *.o
 *.a

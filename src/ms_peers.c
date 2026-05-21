@@ -556,7 +556,7 @@ int peer_set_identity(struct ms_peer* peer,
         hexdata2str(nid_str, node_id, node_id_size);
         hexdata2str(cur_nid_str, peer->node_id, node_id_size);
         log_msg(llv_normal,
-            "for peer %s: refusing to replace %s with %s",
+            "peer_set_identity: for peer %s: refusing to replace id (%s with %s)",
             ipport2a(ip, port), cur_nid_str, nid_str);
         return 0;
     }
@@ -572,7 +572,6 @@ int peer_set_identity(struct ms_peer* peer,
         if(!match_ip && !match_id)
             continue;
         if(have_ip && match_ip && have_id && !match_id) {
-                /* we have to refuse this peer! */
             char nid_str[node_id_size * 2 + 1];
             char conf_nid_str[node_id_size * 2 + 1];
             hexdata2str(nid_str, node_id, node_id_size);

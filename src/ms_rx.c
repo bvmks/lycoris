@@ -721,14 +721,14 @@ static void handle_assoc_request(struct ms_udp_receiver* rx,
 
     remote_tm = u64_from_big_endian(timemark);
     local_now = timemark_sec(rx->peers);
-    if (remote_tm < local_now - timemark_gap || remote_tm > local_now + timemark_gap) {
+    if(remote_tm < local_now - timemark_gap || remote_tm > local_now + timemark_gap) {
         log_msg(llv_debug,
                 "ignoring assoc_request from %s (invalid timestamp)",
                 ipport2a(ip, port));
         return;
     }
 
-    if (remote_tm <= peer_get_last_tm(peer)) {
+    if(remote_tm <= peer_get_last_tm(peer)) {
         log_msg(llv_debug,
                 "ignoring assoc_request from %s (timestamp replay)",
                 ipport2a(ip, port));
@@ -738,7 +738,7 @@ static void handle_assoc_request(struct ms_udp_receiver* rx,
     /* now we can try to identify it*/
 
     kndbres = kndb_get_node(rx->kndb, remote_id, remote_pubkey);
-    if (kndbres != kndb_res_success) {
+    if(kndbres != kndb_res_success) {
         /* TODO: will switch with detailed log_msgs later (i hope)*/
         log_msg(llv_debug,
                 "ignoring assoc_request from %s (kndb refused)",
@@ -1363,12 +1363,6 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
     case as_echo_request_sent:
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
-        if(since_last_rx > min_reset_time) {
-            log_msg(llv_debug, "resetting association  for %s",
-                    ipport2a(ip, port));
-            peer_set_assoc_status(peer, as_none);
-            return;
-        }
         send_echo_request(rx, peer);
         log_msg(llv_debug, "resending echo_request for %s",
                 ipport2a(ip, port));
@@ -1377,7 +1371,7 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
         if(since_last_rx > min_reset_time) {
-            log_msg(llv_debug, "resetting association  for %s",
+            log_msg(llv_debug, "resetting association with %s",
                     ipport2a(ip, port));
             peer_set_assoc_status(peer, as_none);
             return;
@@ -1390,7 +1384,7 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
         if (since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
         if(since_last_rx > min_reset_time) {
-            log_msg(llv_debug, "resetting association  for %s",
+            log_msg(llv_debug, "resetting association with %s",
                     ipport2a(ip, port));
             peer_set_assoc_status(peer, as_none);
             return;
