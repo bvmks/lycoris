@@ -18,19 +18,20 @@ static struct ms_ccmd_result* make_result(int type, int code)
 
 static struct ms_ccmd_result* handle_chmod(struct ms_cparser* cp, struct ms_ccmd* cmd) {
     struct ms_ctl_session* ses = cp->the_session;
-    if(0 == strcmp(cmd->u.chmod.new_mode_str, "BINARY")) {
-        ms_cparser_switch_mode(cp, ctlparser_m_binary);
-        return make_result(ccmd_chmod, ccmd_rc_ok);
-    }
-    else if(0 == strcmp(cmd->u.chmod.new_mode_str, "TEXT")) {
+    switch (cmd->u.chmod.new_mode) {
+    case ctlparser_m_text:
         ms_cparser_switch_mode(cp, ctlparser_m_text);
-        return make_result(ccmd_chmod, ccmd_rc_ok);
-    }
-    else {
+        return make_result(cmd->type, ccmd_rc_ok);
+    case ctlparser_m_binary:
+        ms_cparser_switch_mode(cp, ctlparser_m_text);
+        return make_result(cmd->type, ccmd_rc_ok);
+    case ctlparser_m_undef:
+    default:
         log_msg(llv_debug, 
                 "%s: CHMOD ERR unknown mode (%s)",
-                ses_description(ses), cmd->u.chmod.new_mode_str);
-        return make_result(ccmd_chmod, ccmd_rc_iarg);
+                ses_description(ses), cmd->u.chmod.new_mode);
+        return make_result(cmd->type, ccmd_rc_iarg);
+        return NULL;
     }
 }
 
@@ -92,25 +93,18 @@ struct ms_ccmd_result* process_ccmd(struct ms_cparser* cp, struct ms_ccmd* cmd)
     }
 
     switch (cmd->type) {
-    case ccmd_undef:
-        log_msg(llv_alert, 
-                "%s: handle_ccmd got undefined cmd (BUG)",
-                ses_description(ses));
-        break;
     case ccmd_bind:
         log_msg(llv_debug, 
                 "%s: got BIND control command (port=%d)",
                 ses_description(ses),
                 cmd->u.bind.iport);
-            return handle_bind(cp, cmd);
-        break;
+        return handle_bind(cp, cmd);
     case ccmd_chmod:
         log_msg(llv_debug,
                 "%s: got CHMOD control command (mode=%s)",
                 ses_description(ses),
-                cmd->u.chmod.new_mode_str);
-            return handle_chmod(cp, cmd);
-        break;
+                cmd->u.chmod.new_mode);
+        return handle_chmod(cp, cmd);
     case ccmd_stat:
     case ccmd_send:
         break;
@@ -119,12 +113,13 @@ struct ms_ccmd_result* process_ccmd(struct ms_cparser* cp, struct ms_ccmd* cmd)
                 "%s: got CLOSE control command (code=%d)",
                 ses_description(ses),
                 cmd->u.close.code);
-            return handle_close(cp, cmd);
-        break;
+        return handle_close(cp, cmd);
+    case ccmd_undef:
+    default:
+        log_msg(llv_alert, 
+                "%s: handle_ccmd got undefined cmd (BUG)",
+                ses_description(ses));
     }
-    log_msg(llv_alert,
-            "%s: handle_ccmd got unknown cmd (BUG)",
-            ses_description(ses));
     return NULL;
 }
 

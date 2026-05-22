@@ -25,11 +25,6 @@ enum ms_ctlparser_state{
     ctlparser_s_init = -1,
     ctlparser_s_fin  = 0,
 
-
-    ctlparser_s_txt_reading_cmd,
-    ctlparser_s_txt_reading_opts,
-    ctlparser_s_txt_reading_data,
-
     ctlparser_s_reading_header,
     ctlparser_s_reading_data,
 };
@@ -86,7 +81,7 @@ struct ms_ccmd {
         } stat;
 
         struct {
-            char new_mode_str[mode_str_max_len + 1];
+            int new_mode;
         } chmod;
 
         struct {
@@ -131,8 +126,7 @@ void clear_cmd_trie();
 
 struct ms_ccmd* make_cmd();
 
-/*clears cmd and inits it for new desired type*/
-void cmd_init(struct ms_ccmd* cmd, int typy);
+void cmd_init(struct ms_ccmd* cmd);
 void dispose_cmd(struct ms_ccmd* cmd);
 
 /* aside from state and mode initiation also fills search tree*/
