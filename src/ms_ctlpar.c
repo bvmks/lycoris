@@ -8,38 +8,6 @@
 #include "log.h"
 
 
-static const char* parser_state2a(int state)
-{
-    switch (state) {
-    case ctlparser_s_init:               return "init";
-    case ctlparser_s_reading_block:      return "reading_block";
-    case ctlparser_s_disposing_block:    return "disposing_block";
-    case ctlparser_s_fin:                return "fin";
-    case ctlparser_s_fin_error:          return "fin_error";
-    case ctlparser_s_fin_fatal:          return "fin_fatal";
-    }
-    return "unknown";
-}
-
-static int parser_res2state(int res) {
-    switch (res) {
-    case ctlparser_res_conn_closed: return ctlparser_s_fin;
-    case ctlparser_res_fatal: return ctlparser_s_fin_fatal;
-    case ctlparser_res_error: return ctlparser_s_fin_error;
-
-    case ctlparser_res_finished: return ctlparser_s_fin;
-
-    case ctlparser_res_want_more: return ctlparser_s_reading_block;
-    case ctlparser_res_want_to_dispose: return  ctlparser_s_disposing_block;
-
-    case ctlparser_res_undef:
-    default:
-        log_msg(llv_alert, 
-                "res2state: got undef result (BUG)");
-        return ctlparser_res_undef;
-    }
-}
-
 static int txt_parse_bind_ccmd(struct ms_cparser* cp, const char* args) {
     struct ms_ctl_session* ses = cp->the_session;
     int bind_iport = ms_conn_iport_undef;
@@ -88,14 +56,14 @@ enum txt_ccmd_type {
     tcmd_opt = 256,
 };
 
-struct txt_ccmd {
+struct txt_word {
     int ccmd;
-    enum txt_ccmd_type type;
+    int type;
     char* name;
     ccmd_cb cb;
 };
 
-static struct txt_ccmd txt_ccmds[] = {
+static struct txt_word txt_words[] = {
     {ccmd_bind,  tcmd_main,          "BIND",  &txt_parse_bind_ccmd},
     {ccmd_chmod, tcmd_main,          "CHMOD", &txt_parse_chmod_ccmd},
     {ccmd_stat,  tcmd_main,          "STAT",  NULL},
@@ -114,7 +82,7 @@ struct ms_ccmd* make_cmd()
     struct ms_ccmd* res = malloc(sizeof(*res));
     memset(res, 0, sizeof(*res));
     res->type = ccmd_undef;
-    res->parse_res = ctlparser_res_undef;
+    res->parse_failed = 0;
     return res;
 }
 
@@ -129,10 +97,10 @@ void fill_cmd_trie()
 
     trie_init(&cmd_trie);
 
-    total_cmds = sizeof(txt_ccmds) / sizeof(struct txt_ccmd);
+    total_cmds = sizeof(txt_words) / sizeof(struct txt_word);
     for(i = 0; i < total_cmds; i++) {
-        slot = trie_provide(&cmd_trie, txt_ccmds[i].name);
-        *slot = txt_ccmds[i].cb;
+        slot = trie_provide(&cmd_trie, txt_words[i].name);
+        *slot = txt_words[i].cb;
     }
     t = 0;
 }
@@ -191,7 +159,7 @@ void cmd_init(struct ms_ccmd* cmd, int type)
 {
     cleanup_cmd(cmd);
     cmd->type = type;
-    cmd->parse_res = ctlparser_res_undef;
+    cmd->parse_failed = 0;
 }
 
 void dispose_cmd(struct ms_ccmd* cmd)
@@ -203,6 +171,7 @@ void dispose_cmd(struct ms_ccmd* cmd)
 void ms_cparser_reset(struct ms_cparser* cp)
 {
     cp->state = ctlparser_s_init;
+    cp->txt_the_cur_line = NULL;
     if(cp->target)
         cmd_init(cp->target, ccmd_undef);
 }
@@ -230,9 +199,21 @@ void ms_cparser_cleanup(struct ms_cparser* cp)
     /* that's good */
 }
 
+static long long find_line_end(struct ms_cparser* cp) {
+    while(cp->buf_p < cp->buf_used) {
+        if(cp->buf[cp->buf_p] == '\n') {
+            cp->buf_p++;
+            if(cp->buf_p > parser_max_line_len - 1)
+                return -1;
+            return cp->buf_p;
+        }
+        cp->buf_p++;
+    }
+    return 0;
+}
+
 static long long find_block(struct ms_cparser* cp) {
-    while(cp->buf_p < cp->buf_used) 
-    {
+    while(cp->buf_p < cp->buf_used) {
         if(cp->buf[cp->buf_p] == '\n' &&
            cp->buf_p > 0 &&
            cp->buf[cp->buf_p - 1] == '\n') 
@@ -245,25 +226,64 @@ static long long find_block(struct ms_cparser* cp) {
     return 0;
 }
 
+static int txt_parse_cmd(char* line)
+{
+
+}
+
+static int txt_parse_opts(char* line)
+{
+
+}
+
+static int txt_parse_data(char* data)
+{
+
+}
 
 static int inner_parse_txt(struct ms_cparser* parser,
                            long long* readed)
 {
     struct ms_ctl_session* ses = parser->the_session;
     ccmd_cb cb;
-    int cmd_len, res, block_len;
+    int cmd_len, res, line_len;
+    long long rd = 0;
 
-    *readed = find_block(parser);
-    if(!*readed)
+    if(parser->state == ctlparser_s_fin)
+        return 0;
+
+    if(parser->state == ctlparser_s_init) {
+        parser->state = ctlparser_s_txt_reading_cmd;
+        parser->txt_the_cur_line = (char*)parser->buf;
+    }
+
+    rd = find_line_end(parser);
+    if(rd == 0)
         return ctlparser_res_want_more;
+    if(rd == -1)
+        return ctlparser_res_fatal;
 
-    block_len = parser->buf_p - 2; 
-    if(block_len <= 0) {
+    line_len = parser->buf_p - 1; 
+    parser->buf[line_len] = 0;
+
+    switch(parser->state) {
+    case ctlparser_s_txt_reading_cmd:
+        if(line_len <= 0) {
+            log_msg(llv_alert, "empty control command line");
+            return ctlparser_res_error;
+        }
+        break;
+    case ctlparser_s_txt_reading_opts:
+        break;
+    case ctlparser_s_txt_reading_data:
+        break;
+    }
+
+    if(line_len <= 0) {
         log_msg(llv_alert, "empty control command block");
         return ctlparser_res_error;
     }
     
-    parser->buf[block_len] = 0;
     cb = trie_get_with_len(&cmd_trie, (char*)parser->buf, &cmd_len);
     if(!cb) {
         log_msg(llv_debug, 
@@ -271,26 +291,25 @@ static int inner_parse_txt(struct ms_cparser* parser,
                 ses_description(ses), parser->buf);
         return ctlparser_res_error;
     }
+
     res = (*cb)(parser, (char*)parser->buf + cmd_len);
-    parser->target->parse_res = res;
     switch (res) {
+    case ctlparser_res_conn_closed:
     case ctlparser_res_fatal:
-        parser->state = ctlparser_s_fin_fatal;
-        return res;
     case ctlparser_res_error:
-        parser->state = ctlparser_s_fin_error;
-        return res;
+    case ctlparser_res_undef:
     case ctlparser_res_finished:
-        parser->state = ctlparser_s_fin;
-        return res;
-    default:
-        return res;
+    case ctlparser_res_want_more:
+    case ctlparser_res_want_to_dispose:
+    break;
     }
 
+        
+    return res;
     
 }
 
-int ms_cparser_read(struct ms_cparser* cp, int fd)
+int ms_ctlparser_read(struct ms_cparser* cp, int fd)
 {
     long long rd;
     long long parser_readed;
@@ -298,20 +317,16 @@ int ms_cparser_read(struct ms_cparser* cp, int fd)
 
     switch (cp->state) {
     case ctlparser_s_fin:
-    case ctlparser_s_fin_error:
-    case ctlparser_s_fin_fatal:
-        log_msg(llv_alert, "ms_cparser_read called with %s state (BUG)", parser_state2a(cp->state));
+        log_msg(llv_alert, 
+                "ms_ctlparser_read: called with 'fin' state (BUG)");
         return cp->state;
-
-    case ctlparser_s_init:
-        cp->state = ctlparser_s_reading_block;
     }
 
     if (cp->buf_used < sizeof(cp->buf)) {
         rd = read(fd, cp->buf + cp->buf_used, sizeof(cp->buf) - cp->buf_used);
         if (rd <= 0) {
             if(rd == -1)
-                log_perror(llv_alert, "ms_cparser_read", "read");
+                log_perror(llv_alert, "ms_ctlparser_read", "read");
             return ctlparser_res_conn_closed; 
         }
         cp->buf_used += rd;
@@ -320,20 +335,34 @@ int ms_cparser_read(struct ms_cparser* cp, int fd)
     parser_readed = 0;
     switch (cp->mode) {
     case ctlparser_m_text:
-        return inner_parse_txt(cp, &parser_readed);
+        parser_res = inner_parse_txt(cp, &parser_readed);
+        break;
     case ctlparser_m_binary:
         log_msg(llv_alert, "BINARY mode not supported yet");
-        cp->state = ctlparser_s_fin_fatal;
+        cp->state = ctlparser_s_fin;
         return ctlparser_res_fatal;
     default: 
-        log_msg(llv_alert, "unexpected value for parser mode (%d) (BUG)", cp->mode);
-        parser_res = ctlparser_res_fatal;
+        log_msg(llv_alert, 
+                "ms_ctlparser_read: unexpected value for parser mode (%d) (BUG)",
+                cp->mode);
+        return ctlparser_res_fatal;
     }
+
+    if(parser_res == ctlparser_res_error)
+        cp->target->parse_failed = 1;
 
     if(parser_readed > 0) {
         memmove(cp->buf, cp->buf + parser_readed, cp->buf_used - parser_readed);
         cp->buf_used -= parser_readed;
         cp->buf_p -= parser_readed;
     }
+
+    if(cp->buf_used == sizeof(cp->buf) && 0 == parser_readed) {
+        log_msg(llv_alert, 
+                "%s: ms_cparser_read: buffer overflow!",
+                ses_description(cp->the_session));
+        return ctlparser_res_fatal;
+    }
+
     return parser_res;
 }

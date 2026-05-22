@@ -21,14 +21,17 @@ enum ms_ctlparser_mode{
 };
 
 enum ms_ctlparser_state{
-    ctlparser_s_fin_error = -3,
-    ctlparser_s_fin_fatal = -2,
-    ctlparser_s_init = -1,
 
+    ctlparser_s_init = -1,
     ctlparser_s_fin  = 0,
 
-    ctlparser_s_reading_block,
-    ctlparser_s_disposing_block,
+
+    ctlparser_s_txt_reading_cmd,
+    ctlparser_s_txt_reading_opts,
+    ctlparser_s_txt_reading_data,
+
+    ctlparser_s_reading_header,
+    ctlparser_s_reading_data,
 };
 
 
@@ -37,7 +40,9 @@ enum ms_ctlparser_res{
     ctlparser_res_fatal = -3,
     ctlparser_res_error = -2,
     ctlparser_res_undef = -1,
-    ctlparser_res_finished,
+
+    ctlparser_res_finished = 0,
+
     ctlparser_res_want_more,
     ctlparser_res_want_to_dispose,
 };
@@ -49,6 +54,7 @@ enum {
     ms_conn_iport_max = 16,
 
     parser_inner_buf_size = 4000,
+    parser_max_line_len = 50,
     
     mode_str_max_len = 15,
 };
@@ -68,8 +74,8 @@ union resolved_addr{
 };
 
 struct ms_ccmd {
-    enum ms_ccmd_type type;
-    enum ms_ctlparser_res parse_res;
+    int type;
+    int parse_failed;
     union {
         struct {
             int iport;
@@ -112,6 +118,8 @@ struct ms_cparser {
     int mode;
     struct ms_ccmd* target;
     struct ms_ctl_session* the_session;
+
+    char* txt_the_cur_line;
     
     unsigned char buf[parser_inner_buf_size];
     unsigned int buf_p;
@@ -137,7 +145,7 @@ void ms_cparser_reset(struct ms_cparser* cp);
 
 void ms_cparser_switch_mode(struct ms_cparser* cp, int new_mode);
 
-int ms_cparser_read(struct ms_cparser* cp, int fd);
+int ms_ctlparser_read(struct ms_cparser* cp, int fd);
 
 /* frees tree*/
 void ms_cparser_cleanup(struct ms_cparser* cp);

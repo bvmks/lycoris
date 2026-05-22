@@ -7,16 +7,16 @@ struct ms_ctl_session;
 struct ms_ccmd_result;
 
 enum ms_ccmd_result_code {
-    ms_ccmd_rc_undef = -1,
-    ms_ccmd_rc_ok = 0,              /* as it said `all goochi` */
+    ccmd_rc_undef = -1,
+    ccmd_rc_ok = 0,              /* as it said `all goochi` */
 
-    ms_ccmd_rc_parse_error = 101,   /* parsing failed */
+    ccmd_rc_parse_error = 101,   /* parsing failed */
 
-    ms_ccmd_rc_iarg = 201,          /* arguments is invalid */
-    ms_ccmd_rc_opdeny = 202,        /* operation denied */
+    ccmd_rc_iarg = 201,          /* arguments is invalid */
+    ccmd_rc_opdeny = 202,        /* operation denied */
 };
 
-int send_code(struct ms_ctl_session* ses, int code);
+int txt_send_code(struct ms_ctl_session* ses, int code);
 
 int send_response(struct ms_ctl_session* ses, struct ms_ccmd_result* res);
 

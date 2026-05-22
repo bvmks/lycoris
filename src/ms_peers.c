@@ -330,7 +330,7 @@ void peer_set_token(struct ms_peer* peer, unsigned long long token)
     peer->last_token = token;
 }
 
-unsigned long long peer_token(struct ms_peer* peer)
+unsigned long long peer_token(const struct ms_peer* peer)
 {
     return peer->last_token;
 }

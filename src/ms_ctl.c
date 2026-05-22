@@ -25,14 +25,13 @@ enum {
     ms_conn_mode_binary = 0,
     ms_conn_mode_text = 1,
 
-    /* inner port numeration starts with 1*/
 };
 
-const char* ses_description(struct ms_ctl_session* ses)
+const char* ses_description(const struct ms_ctl_session* ses)
 {
     static char buf[128];
     char* p = buf;
-    p += sprintf(p, "CLT SES %d", ses->id);
+    p += sprintf(p, "CTL SES %d", ses->id);
     if(ses->bound) {
         *p = ' ';
         p++;
@@ -121,48 +120,11 @@ static int check_clean_socket(const char *path)
     return 1;
 }
 
-static int check_process_parsing_result(int res, struct ms_cparser* parser) {
-    struct ms_ccmd_result* cmd_result;
-    struct ms_ctl_session* ses = parser->the_session;
-    switch (res) {
-    case ctlparser_res_want_more:
-        return 1;
-    case ctlparser_res_finished:
-        cmd_result = process_ccmd(parser, parser->target);
-        send_response(ses, cmd_result);
-        dispose_cmd_res(cmd_result);
-        ms_cparser_reset(parser);
-        return 1;
-    case ctlparser_res_error:
-        log_msg(llv_debug, 
-                "%s: control command parsing failed",
-                ses_description(ses));
-        ms_cparser_reset(parser);
-        return 1;
-    case ctlparser_res_fatal:
-        log_msg(llv_alert, 
-                "%s: control command parsing fatal error",
-                ses_description(ses));
-        close_session(ses);
-        return 0;
-    case ctlparser_res_conn_closed:
-        log_msg(llv_debug, 
-                "%s: connection closed",
-                ses_description(ses));
-        dispose_session(ses);
-        return 0;
-    }
-
-    log_msg(llv_alert, 
-            "%s: unknown parsing result (%d) (BUG)", 
-            ses_description(ses), res);
-    return 0;
-}
-
 static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 {
     struct ms_ctl_session* ses = h->userdata;
     struct ms_cparser* parser = &ses->parser;
+    struct ms_ccmd_result* cmd_result;
     int res;
 
     log_msg(llv_debug2, 
@@ -176,11 +138,39 @@ static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         return;
     }
 
-    res = ms_cparser_read(parser, h->fd);
-    if(!check_process_parsing_result(res, parser)) {
+    res = ms_ctlparser_read(parser, h->fd);
+    switch (res) {
+    case ctlparser_res_want_more:
+        break;
+    case ctlparser_res_error:
+        log_msg(llv_debug, 
+                "%s: control command parsing failed",
+                ses_description(ses));
+    case ctlparser_res_finished:
+        cmd_result = process_ccmd(parser, parser->target);
+        send_response(ses, cmd_result);
+        dispose_cmd_res(cmd_result);
+        ms_cparser_reset(parser);
+        break;
+
+    case ctlparser_res_fatal:
+        log_msg(llv_alert, 
+                "%s: control command parsing fatal error, closing connection",
+                ses_description(ses));
+        close_session(ses);
+        return;
+    case ctlparser_res_conn_closed:
+        log_msg(llv_debug, 
+                "%s: connection terminated",
+                ses_description(ses));
+        dispose_session(ses);
+        return;
+    default:
+        log_msg(llv_alert, 
+                "%s: unknown parsing result (%d) (bug)", 
+                ses_description(ses), res);
         return;
     }
-
 
     if(ses->to_close)
         close_session(ses);
@@ -246,8 +236,8 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
 
 struct ms_control_receiver *
 launch_control_receiver(struct sue_event_selector *sel,
-                           struct ms_node_cfg *cfg,
-                           struct ms_udp_receiver *rx)
+                        struct ms_node_cfg *cfg,
+                        struct ms_udp_receiver *rx)
 {
     struct ms_control_receiver *crx;
     struct sockaddr_un addr;

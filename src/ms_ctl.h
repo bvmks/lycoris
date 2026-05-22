@@ -45,12 +45,12 @@ struct ms_control_receiver {
 };
 
 
-const char* ses_description(struct ms_ctl_session* ses);
+const char* ses_description(const struct ms_ctl_session* ses);
 
 struct ms_control_receiver *
 launch_control_receiver(struct sue_event_selector *sel,
-                           struct ms_node_cfg *cfg,
-                           struct ms_udp_receiver *rx);
+                        struct ms_node_cfg *cfg,
+                        struct ms_udp_receiver *rx);
 
 void dispose_control_receiver(struct ms_control_receiver *crx);
 

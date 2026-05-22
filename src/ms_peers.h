@@ -31,7 +31,7 @@ int timemark_minutes(const struct ms_peer_collection* col);
 unsigned long long timemark_sec(const struct ms_peer_collection* col);
 
 void peer_set_token(struct ms_peer* peer, unsigned long long token);
-unsigned long long peer_token(struct ms_peer* peer);
+unsigned long long peer_token(const struct ms_peer* peer);
 
 void peer_generate_new_cookie(struct ms_peer* peer);
 void peer_set_cookie(struct ms_peer* peer, const unsigned char cookie[8]);
