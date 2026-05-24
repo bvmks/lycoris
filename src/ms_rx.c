@@ -486,7 +486,7 @@ void send_enc_post(struct ms_udp_receiver* rx,
     buf[0] = ms_cmd_post;
     buf[1] = src_iport;
     buf[2] = dst_iport;
-    memcpy(&buf[4], payload, payload_len);
+    memcpy(&buf[3], payload, payload_len);
     send_encrypted(rx, peer, buf, payload_len + 3);
 }
 
@@ -1091,7 +1091,7 @@ static void handle_enc_post(struct ms_udp_receiver* rx,
         return;
     }
 
-    ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload, len);
+    ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload + 2, len - 2);
 }
 
 static void handle_enc_data(struct ms_udp_receiver* rx,
