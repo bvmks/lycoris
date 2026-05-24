@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -93,6 +94,10 @@ static const char text_help_send[] =
     "And destination iport must follow it\n"
     ;
 
+static const char text_help_recv[] =
+    "Bebra\n"
+    ;
+
 
 static void handle_help(struct ms_ctl_session *ses, char **argv)
 {
@@ -116,6 +121,12 @@ static void handle_help(struct ms_ctl_session *ses, char **argv)
     else
     if(0 == strcmp(argv[1], "bind"))
         fputs(text_help_bind, ses->stream);
+    else
+    if(0 == strcmp(argv[1], "send"))
+        fputs(text_help_send, ses->stream);
+    else
+    if(0 == strcmp(argv[1], "recv"))
+        fputs(text_help_recv, ses->stream);
     else
     if(0 == strcmp(argv[1], "log"))
         fputs(text_help_log, ses->stream);
@@ -143,7 +154,7 @@ static void txt_handle_show(struct ms_ctl_session *ses, char **argv)
     } else
     {
         fprintf(ses->stream, "* ERROR unknown show command option ''%s''\n",
-                             argv[1]);
+                argv[1]);
     }
 
 }
@@ -191,8 +202,16 @@ static void txt_handle_send(struct ms_ctl_session *ses, char **argv)
         fputs(text_help_send, ses->stream);
         return;
     }
+
+    if(*argv[1] == '@') {
+        res = ctl_resolve_peer_from_name(rx->the_crx, argv[1] + 1, &ip, &port);
+        if(!res) {
+            fputs("* ERROR unknown peer\n", ses->stream);
+            return;
+        }
+    } else
     if(!str2ipport(&ip, &port, argv[1])) {
-        fputs("* ERROR send command needs peer addres (for now only ip:port used)\n", ses->stream);
+        fputs("* ERROR invalid peer address\n", ses->stream);
         return;
     }
 
@@ -208,7 +227,7 @@ static void txt_handle_send(struct ms_ctl_session *ses, char **argv)
     }
 
     if(!str2integer(argv[2], &dst_iport)) {
-        fputs("* ERROR destination iport must integer\n", ses->stream);
+        fputs("* ERROR destination iport must be integer\n", ses->stream);
         return;
     }
 
@@ -250,6 +269,25 @@ static void txt_handle_send(struct ms_ctl_session *ses, char **argv)
         fprintf(ses->stream,"* ERROR no association with %s\n", peer_description(peer));
         break;
     }
+}
+
+static void txt_handle_recv(struct ms_ctl_session *ses, char **argv)
+{
+    struct received_post* msg;
+    if(ses->rxq_len == 0) {
+        fputs("nothing to receive\n", ses->stream);
+        return;
+    }
+    else {
+        msg = ses->rxq_first;
+        ses->rxq_first = ses->rxq_first->next;
+        if(!ses->rxq_first)
+            ses->rxq_last = NULL;
+    }
+    fprintf(ses->stream, "msg src/dst %d/%d payload:\n%s\n",
+            msg->src_iport, msg->dst_iport, msg->payload);
+    free(msg->payload);
+    free(msg);
 }
 
 static void txt_log_cb(void *userdata, const char *message)
@@ -377,6 +415,9 @@ txt_handle_command(struct ms_ctl_session *ses, const char *cmd, int len)
     } else
     if(0 == strcmp(argv[0], "send")) {
         txt_handle_send(ses, argv);
+    } else
+    if(0 == strcmp(argv[0], "recv")) {
+        txt_handle_recv(ses, argv);
     } else
     if(0 == strcmp(argv[0], "shutdown")) {
         txt_handle_shutdown(ses, argv);

@@ -2,7 +2,6 @@
 #define _MS_RX_H
 
 #include <sue/sue_base.h>
-#include "crypdf.h"
 #include "ms_comm_ctx.h"
 
 struct ms_peer;
@@ -47,10 +46,11 @@ void handle_assoc_process(struct ms_udp_receiver* rx,
 void ms_rx_peer_gone(struct ms_udp_receiver* rx,
                      struct ms_peer* peer);
 
-void send_post(struct ms_udp_receiver* rx,
-               struct ms_peer* peer,
-               int src_iport, int dst_iport,
-               const void* payload, long long payload_len);
+
+void send_enc_post(struct ms_udp_receiver* rx,
+                   struct ms_peer* peer,
+                   int src_iport, int dst_iport,
+                   const unsigned char* payload, int payload_len);
 
 int send_to(int fd, unsigned int ip, unsigned short port,
             const void* buf, int len);

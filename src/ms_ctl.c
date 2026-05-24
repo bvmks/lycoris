@@ -11,12 +11,12 @@
 
 
 #include "ms_ctl.h"
-#include "addrport.h"
 #include "ms_ctltxt.h"
 #include "ms_nodecfg.h"
 #include "log.h"
 #include "ms_rx.h"
 #include "ms_peers.h"
+#include "addrcol.h"
 
 enum {
     con_sess_buff_size = 1024,
@@ -203,7 +203,6 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         return;
     }
 
-
     ses = malloc(sizeof(*ses));
     ses->master = crx;
     ses->fdh.fd = fd;
@@ -216,12 +215,15 @@ static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
     ses->log = NULL;
     ses->stream = fdopen(fd, "w");
 
-    ses->iport = ms_conn_iport_undef;
+    ses->iport = ms_ctl_iport_undef;
     ses->bound = 0;
+    ses->rxq_first = NULL;
+    ses->rxq_last = NULL;
+    ses->rxq_len = 0;
 
     ses->id = crx->ses_id_counter;
     crx->ses_id_counter++;
-    
+
     ses->next = crx->first;
     crx->first = ses;
 
@@ -332,7 +334,7 @@ int ctl_handle_bind(struct ms_ctl_session* ses, int iport)
         ms_ctl_errno = ctl_err_bind_already_bound;
         return 0;
     }
-    if(iport <= 0 || iport >= ms_conn_iport_max) {
+    if(iport <= 0 || iport >= ms_ctl_iport_max) {
         log_msg(llv_debug,
                 "%s: trying to bind to invalid port",
                 ses_description(ses), iport);
@@ -370,7 +372,7 @@ int ctl_handle_send(struct ms_ctl_session* ses,
         ms_ctl_errno = ctl_err_send_not_bound;
         return 0;
     }
-    if(dst_iport < 0 || dst_iport >= ms_conn_iport_max) {
+    if(dst_iport < 0 || dst_iport >= ms_ctl_iport_max) {
         log_msg(llv_debug,
                 "%s: trying to send but invalid dst iport specified (%s)",
                 ses_description(ses), dst_iport);
@@ -399,13 +401,45 @@ int ctl_handle_send(struct ms_ctl_session* ses,
     log_msg(llv_debug,
             "%s: sending post to %s port %d",
             ses_description(ses), peer_description(peer), dst_iport);
-    send_post(rx, peer, ses->iport, dst_iport, data, len);
+    send_enc_post(rx, peer, ses->iport, dst_iport, data, len);
     return 1;
 }
 
-int ctl_resolve_peer_from_str(char* str, 
+int ctl_resolve_peer_from_name(struct ms_control_receiver* crx, char* name, 
                               unsigned int *ip, unsigned short* port)
 {
+    struct ms_node_cfg* cfg = crx->the_cfg;
+    struct peer_conf* conf = cfg->first_peer;
 
+    for(;conf; conf = conf->next) {
+        if(0 == strcmp(name, conf->name)) {
+            *ip = conf->ip;
+            *port = conf->port;
+            return 1;
+        }
+    }
     return 0;
+}
+
+void ctl_add_recvd(struct ms_ctl_session* ses, 
+               int src_iport, int dst_iport,
+               const unsigned char* payload, int len)
+{
+    struct received_post* msg = malloc(sizeof(*msg));
+    msg->dst_iport = dst_iport;
+    msg->src_iport = src_iport;
+    msg->payload_len = len;
+    msg->recv_time = 0;
+    msg->payload = malloc(sizeof(msg->payload));
+    memcpy(msg->payload, payload, len);
+
+    msg->next = NULL;
+    if(ses->rxq_last)
+       ses->rxq_last->next = msg;
+    ses->rxq_last = msg;
+
+    if(!ses->rxq_first)
+       ses->rxq_first = msg;
+
+    ses->rxq_len++;
 }

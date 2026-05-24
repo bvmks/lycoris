@@ -2,7 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
+
 #include "ms_rx.h"
+#include "ms_ctlpar.h"
+#include "ms_ctl.h"
 #include "ms_nodeid.h"
 #include "ms_nodecfg.h"
 #include "ms_comm_ctx.h"
@@ -436,15 +439,15 @@ static void send_encrypted(struct ms_udp_receiver *rx,
     crypto_aead_lock(ct, mac, peer_encrypt_key(peer), msg->buf, NULL, 0,
                      ct, payload_len + padding);
 
-    log_msg(llv_debug,
+    log_msg(llv_debug2,
             "sending encrypted dgram (cmd=%02x, size=%d/%d) to %s",
             payload[0], msg->len - msg->offset, payload_len,
             ipport2a(msg->ip, msg->port));
 #ifndef _RX_DEBUG
-    log_msg_bald(llv_debug, 
+    log_msg_bald(llv_debug2, 
                  "nonce: %s",
                  hexdata2a(msg->buf + cipher_nonce_offset, cipher_nonce_used));
-    log_msg_bald(llv_debug, 
+    log_msg_bald(llv_debug2, 
                  "mac:   %s",
                  hexdata2a(msg->buf + cipher_nonce_total, cipher_mac_size));
 #endif
@@ -469,10 +472,10 @@ static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
     send_encrypted(rx, peer, &payload, 1);
 }
 
-void send_post(struct ms_udp_receiver* rx,
-               struct ms_peer* peer,
-               int src_iport, int dst_iport,
-               const void* payload, long long payload_len)
+void send_enc_post(struct ms_udp_receiver* rx,
+                   struct ms_peer* peer,
+                   int src_iport, int dst_iport,
+                   const unsigned char* payload, int payload_len)
 {
     unsigned char buf[ms_max_payload + 1];
     if(payload_len > ms_max_payload - 2) {
@@ -553,7 +556,7 @@ static void handle_intro(struct ms_udp_receiver* rx,
 
 static void handle_echo_request(struct ms_udp_receiver* rx,
                             unsigned int ip, unsigned short port,
-                            const unsigned char* data, int len)
+                            const unsigned char* payload, int len)
 {
     if(len != padded_msg_size - 2) {
         log_msg(llv_debug, 
@@ -1013,7 +1016,7 @@ static void handle_plain_dgram(struct ms_udp_receiver* rx,
 {
     unsigned char cmd;
     cmd = get_plain_dgram_cmd(dgram);
-    log_msg(llv_debug, "plain dgram: cmd %02x", cmd);
+    log_msg(llv_debug2, "plain dgram: cmd %02x", cmd);
     switch (cmd) {
     case ms_cmd_echo_request: 
         handle_echo_request(rx, ip, port, dgram+2, len-2);
@@ -1065,15 +1068,34 @@ static void handle_enc_imalive(struct ms_udp_receiver* rx,
 
 static void handle_enc_post(struct ms_udp_receiver* rx,
                             struct ms_peer* peer,
-                            const unsigned char* data, int len)
+                            const unsigned char* payload, int len)
 {
-    log_msg(llv_debug, "received post from %s",
-            peer_description(peer));
+    struct ms_control_receiver* crx = rx->the_crx;
+    int src_iport = payload[0];
+    int dst_iport = payload[1];
+
+    if(src_iport < 0 || src_iport >= ms_ctl_iport_max) {
+        log_msg(llv_debug, "ignoring post dgram from %s (invalid src iport)",
+                peer_description(peer));
+        return;
+    }
+    if(src_iport < 0 || dst_iport >= ms_ctl_iport_max) {
+        log_msg(llv_debug, "ignoring post dgram from %s (invalid dst iport)",
+                peer_description(peer));
+        return;
+    }
+
+    if(!crx->ports[dst_iport]) {
+        log_msg(llv_debug, "ignoring post from %s (dst iport not bound))",
+                peer_description(peer));
+    }
+
+    ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload, len);
 }
 
 static void handle_enc_data(struct ms_udp_receiver* rx,
                             struct ms_peer* peer,
-                            const unsigned char* data, int len)
+                            const unsigned char* payload, int len)
 {
     log_msg(llv_debug, "received data from %s",
             peer_description(peer));
@@ -1121,15 +1143,15 @@ static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
         return;
     }
 
-    log_msg(llv_debug,
+    log_msg(llv_debug2,
             "encrypted dgram (cmd=%02x) from %s",
             ct[0], ipport2a(ip, port));
 
-#ifndef _RX_DEBUG
-    log_msg_bald(llv_debug, 
+#ifdef _RX_DEBUG
+    log_msg_bald(llv_debug2, 
                  "nonce: %s",
                  hexdata2a(nonce + cipher_nonce_offset, cipher_nonce_used));
-    log_msg_bald(llv_debug, 
+    log_msg_bald(llv_debug2, 
                  "mac:   %s",
                  hexdata2a(mac, cipher_mac_size));
 #endif
@@ -1240,7 +1262,7 @@ static void the_fd_handler_read(struct sue_fd_handler* h)
     ip = htonl(addr.sin_addr.s_addr);
     port = htons(addr.sin_port);
 
-    log_msg(llv_debug, "received %d bytes from %s", rc, ipport2a(ip, port));
+    log_msg(llv_debug2, "received %d bytes from %s", rc, ipport2a(ip, port));
     
     handle_incoming_dgram(rx, ip, port, buf, rc);
 }

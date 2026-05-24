@@ -60,6 +60,12 @@ enum {
 
 };
 
+enum {
+    ms_ctl_iport_undef = -1,
+    ms_ctl_iport_all = 0,
+    ms_ctl_iport_max = 16,
+};
+
 const char *ms_err_diags(int code);
 
 void set_plain_dgram_head(unsigned char *dgram, int cmd);

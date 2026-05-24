@@ -2,6 +2,7 @@
 #define _MS_CON_PARSER_H
 
 #include <stddef.h>
+#include "ms_comm_ctx.h"
 
 struct ms_ctl_session;
 
@@ -27,12 +28,6 @@ enum ms_ctlparser_res {
     cpres_want_more
 };
 
-enum {
-    ms_conn_iport_undef = -1,
-    ms_conn_iport_all = 0,
-    ms_conn_iport_max = 16,
-    parser_inner_buf_size = 4000
-};
 
 
 enum ccmd_type {
@@ -81,6 +76,10 @@ struct ms_ccmd_parsed {
             int code;
         } close;
     } u;
+};
+
+enum {
+    parser_inner_buf_size = 4000
 };
 
 struct ms_cparser {
