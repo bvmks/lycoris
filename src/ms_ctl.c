@@ -11,10 +11,12 @@
 
 
 #include "ms_ctl.h"
+#include "addrport.h"
 #include "ms_ctltxt.h"
 #include "ms_nodecfg.h"
 #include "log.h"
 #include "ms_rx.h"
+#include "ms_peers.h"
 
 enum {
     con_sess_buff_size = 1024,
@@ -323,7 +325,7 @@ int ctl_handle_bind(struct ms_ctl_session* ses, int iport)
 {
     struct ms_control_receiver* crx = ses->master;
     if(ses->bound) {
-        log_msg(llv_normal,
+        log_msg(llv_debug,
                 "%s: trying to bind but already bound",
                 ses_description(ses));
 
@@ -331,24 +333,79 @@ int ctl_handle_bind(struct ms_ctl_session* ses, int iport)
         return 0;
     }
     if(iport <= 0 || iport >= ms_conn_iport_max) {
-        log_msg(llv_normal,
+        log_msg(llv_debug,
                 "%s: trying to bind to invalid port",
                 ses_description(ses), iport);
         ms_ctl_errno = ctl_err_invalid_arg;
         return 0;
     }
     if(crx->ports[iport]) {
-        log_msg(llv_normal,
+        log_msg(llv_debug,
                 "%s: trying to bind to already accupied port (%d)",
                 ses_description(ses), iport);
         ms_ctl_errno = ctl_err_bind_port_occupied;
         return 0;
     }
-    log_msg(llv_normal,
+    log_msg(llv_debug,
             "%s: session bound to iport (%d)",
             ses_description(ses), iport);
     ms_ctl_errno = ctl_err_ok;
     ses->bound = 1;
+    ses->iport = iport;
     crx->ports[iport] = ses;
     return 1;
+}
+
+int ctl_handle_send(struct ms_ctl_session* ses, 
+                    struct ms_peer* peer,
+                    int dst_iport,
+                    const void* data, unsigned long long len)
+{
+    struct ms_udp_receiver* rx = ses->master->the_rx;
+    int as;
+    if(!ses->bound) {
+        log_msg(llv_debug,
+                "%s: trying to send but not bound",
+                ses_description(ses));
+        ms_ctl_errno = ctl_err_send_not_bound;
+        return 0;
+    }
+    if(dst_iport < 0 || dst_iport >= ms_conn_iport_max) {
+        log_msg(llv_debug,
+                "%s: trying to send but invalid dst iport specified (%s)",
+                ses_description(ses), dst_iport);
+        ms_ctl_errno = ctl_err_send_invalid_iport;
+        return 0;
+    }
+    if(len > ms_max_payload - 2) {
+        log_msg(llv_debug,
+                "%s: trying to send but msg too long (%s)",
+                ses_description(ses), len);
+        ms_ctl_errno = ctl_err_send_msg_too_long;
+        return 0;
+    }
+    as = peer_assoc_status(peer);
+    if(as != as_established){
+        log_msg(llv_debug,
+                "%s: trying to send but association with %s not established (%s)",
+                ses_description(ses), peer_description(peer), assoc_status_str(as));
+        if(as == as_gave_up) {
+            peer_try_reassoc(peer);
+        }
+        ms_ctl_errno = ctl_err_send_no_assoc;
+        return 0;
+    }
+    
+    log_msg(llv_debug,
+            "%s: sending post to %s port %d",
+            ses_description(ses), peer_description(peer), dst_iport);
+    send_post(rx, peer, ses->iport, dst_iport, data, len);
+    return 1;
+}
+
+int ctl_resolve_peer_from_str(char* str, 
+                              unsigned int *ip, unsigned short* port)
+{
+
+    return 0;
 }

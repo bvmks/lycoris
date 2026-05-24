@@ -469,6 +469,14 @@ static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
     send_encrypted(rx, peer, &payload, 1);
 }
 
+void send_post(struct ms_udp_receiver* rx,
+               struct ms_peer* peer,
+               int src_iport, int dst_iport,
+               const unsigned char* payload, int payload_len)
+{
+
+}
+
 
 #if 0
 static void send_enc_imalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
@@ -1365,12 +1373,6 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
         send_echo_request(rx, peer);
         return;
     case as_echo_request_sent:
-        if(since_last_rx > rx->the_cfg->peer_timeout) {
-            log_msg(llv_debug, "giving up association with %s",
-                    peer_description(peer));
-            peer_set_assoc_status(peer, as_gave_up);
-            return;
-        }
         if(since_last_rx < since_last_tx || since_last_tx < min_retry_time)
             return;
         send_echo_request(rx, peer);

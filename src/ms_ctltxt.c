@@ -3,8 +3,10 @@
 #include <unistd.h>
 
 #include "_version.h"
+#include "addrport.h"
 #include "log.h"
 #include "ms_ctl.h"
+#include "ms_peers.h"
 #include "strargv.h"
 #include "ms_nodecfg.h"
 #include "ms_rx.h"
@@ -76,6 +78,19 @@ static const char text_help_bind[] =
     "To perform ''send'' or ''recv'' operations you must\n"
     "be bound to inner port.\n"
     "Only one control session can be bound to one iport.\n"
+    ;
+
+static const char text_help_send[] =
+    "The ''send'' command send specified ''thing''\n"
+    "to specified peer and specified iport\n"
+    "send <peer> <iport> <what> <what_desc>\n"
+    "\n"
+    "The ''thing'' may be one of following:\n"
+    "    msg <text>           just text msg\n"
+    "    file <path>          send file\n"
+    "\n"
+    "Peer can be specified with ip:port/node_id/name\n"
+    "And destination iport must follow it\n"
     ;
 
 
@@ -159,6 +174,80 @@ static void txt_handle_bind(struct ms_ctl_session *ses, char **argv)
         break;
     case ctl_err_invalid_arg:
         fputs("* ERROR invalid iport\n", ses->stream);
+        break;
+    }
+}
+
+static void txt_handle_send(struct ms_ctl_session *ses, char **argv)
+{
+    struct ms_udp_receiver* rx = ses->master->the_rx;
+    struct ms_peer* peer;
+    long long dst_iport;
+    unsigned int ip;
+    unsigned short port;
+    int res;
+
+    if(!argv[1]) {
+        fputs(text_help_send, ses->stream);
+        return;
+    }
+    if(!str2ipport(&ip, &port, argv[1])) {
+        fputs("* ERROR send command needs peer addres (for now only ip:port used)\n", ses->stream);
+        return;
+    }
+
+    peer = get_peer_record(rx->peers , ip, port, 0);
+    if(!peer) {
+        fputs("* ERROR unknown peer\n", ses->stream);
+        return;
+    }
+
+    if(!argv[2]) {
+        fputs("* ERROR destination iport must be specified\n", ses->stream);
+        return;
+    }
+
+    if(!str2integer(argv[2], &dst_iport)) {
+        fputs("* ERROR destination iport must integer\n", ses->stream);
+        return;
+    }
+
+    if(!argv[3]) {
+        fputs("* ERROR sending target must be specified\n", ses->stream);
+        return;
+    }
+
+
+    if(0 == strcmp(argv[3], "msg")) {
+        if(!argv[4]) {
+            fputs("* ERROR messages must be specified \n", ses->stream);
+            return;
+        }
+        res = ctl_handle_send(ses, peer, dst_iport, argv[4], strlen(argv[4]));
+    }else
+    if(0 == strcmp(argv[3], "file")) {
+        fputs("* ERROR files sending not supported yet\n", ses->stream);
+        return;
+    }else {
+        fprintf(ses->stream, "* ERROR unknown sending target ''%s''\n", argv[3]);
+        return;
+    }
+
+    if(res)
+        return;
+
+    switch (ms_ctl_errno) {
+    case ctl_err_send_invalid_iport:
+        fputs("* ERROR invalid destination iport\n", ses->stream);
+        break;
+    case ctl_err_send_msg_too_long:
+        fputs("* ERROR message too long\n", ses->stream);
+        break;
+    case ctl_err_send_not_bound:
+        fputs("* ERROR session must be bound to send\n", ses->stream);
+        break;
+    case ctl_err_send_no_assoc:
+        fprintf(ses->stream,"* ERROR no association with %s\n", peer_description(peer));
         break;
     }
 }
@@ -285,6 +374,9 @@ txt_handle_command(struct ms_ctl_session *ses, const char *cmd, int len)
     } else
     if(0 == strcmp(argv[0], "bind")) {
         txt_handle_bind(ses, argv);
+    } else
+    if(0 == strcmp(argv[0], "send")) {
+        txt_handle_send(ses, argv);
     } else
     if(0 == strcmp(argv[0], "shutdown")) {
         txt_handle_shutdown(ses, argv);

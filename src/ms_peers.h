@@ -72,6 +72,9 @@ void peers_timer_hook(struct ms_peer_collection* col);
 int peer_check_update_nonce(struct ms_peer* peer, const unsigned char* nonce,
                      const char* caller_name);
 
+/* resets tx/rx and sets as_none if gave up*/
+void peer_try_reassoc(struct ms_peer* peer);
+
 void peer_make_perm(struct ms_peer* peer);
 
 struct ms_peer_collection* make_peer_collection(struct ms_udp_receiver* rx, 

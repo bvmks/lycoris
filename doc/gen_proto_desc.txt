@@ -81,15 +81,16 @@ error
 
 ENCRYPTED
 
+all encrypted messages starts with zb + nonce + MAC + cmd 
+so it's will be ommited in the description
+
 keep alive
-0..7        8       nonce
-8..23       16      MAC
-25..127         	random padding
+25..147         	random padding
 
 post
-0..7        8       nonce
-8..23       16      MAC
-25..507             data
+25                  src iport
+26                  dst iport
+27..507             data
 
 *********************
 establishing association 

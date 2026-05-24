@@ -44,10 +44,15 @@ void set_control_receiver(struct ms_udp_receiver* rx, struct ms_control_receiver
 void handle_assoc_process(struct ms_udp_receiver* rx,
                                 struct ms_peer* peer);
 
-void ms_rx_peer_gone(struct ms_udp_receiver *rx,
+void ms_rx_peer_gone(struct ms_udp_receiver* rx,
                      struct ms_peer* peer);
 
+void send_post(struct ms_udp_receiver* rx,
+               struct ms_peer* peer,
+               int src_iport, int dst_iport,
+               const unsigned char* payload, int payload_len);
+
 int send_to(int fd, unsigned int ip, unsigned short port,
-            const void *buf, int len);
+            const void* buf, int len);
 
 #endif

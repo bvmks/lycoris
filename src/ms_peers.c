@@ -44,8 +44,7 @@ struct ms_peer {
     unsigned char last_assoc_cookie[8];     /* cookie used for assoc_req/assoc_fini excange */
     unsigned long long last_assoc_timemark; /* timemark of last valid accepted assoc_req */
 
-    unsigned long long last_rx;
-    unsigned long long last_tx;
+    long long last_rx, last_tx;
 };
 
 struct peercoll_item {
@@ -152,6 +151,20 @@ int timemark_minutes(const struct ms_peer_collection* col)
 unsigned long long timemark_sec(const struct ms_peer_collection* col)
 {
     return (col->peers.starttime + (long long)col->peers.curtime);
+}
+
+
+void peer_try_reassoc(struct ms_peer* peer)
+{
+    if(peer->assoc_status != as_gave_up)
+        return;
+
+    log_msg(llv_debug,
+            "will try to re-establish association with %s",
+            peer_description(peer));
+    peer->assoc_status = as_none;
+    peer->last_rx = -1;
+    peer->last_tx = -1;
 }
 
 

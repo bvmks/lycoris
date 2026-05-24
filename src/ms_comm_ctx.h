@@ -31,6 +31,11 @@ enum {
     ms_min_dgram         = 64,
     ms_max_dgram         = 508,
     ms_min_payload       = 40,
+    ms_max_payload       = ms_max_dgram 
+                         - 1 /* zero byte */
+                         - cipher_nonce_used 
+                         - cipher_mac_size
+                         - 1, /* real cmd*/
 
     ms_zb_enc_min        = 0x00,
     ms_zb_enc_max        = 0xE0,       
