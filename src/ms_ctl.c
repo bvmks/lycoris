@@ -11,6 +11,7 @@
 
 
 #include "ms_ctl.h"
+#include "ms_ctltxt.h"
 #include "ms_nodecfg.h"
 #include "log.h"
 #include "ms_rx.h"
@@ -25,6 +26,8 @@ enum {
     ms_conn_mode_text = 1,
 
 };
+
+int ms_ctl_errno = ctl_err_ok;
 
 const char* ses_description(const struct ms_ctl_session* ses)
 {
@@ -169,8 +172,13 @@ static void control_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
         close_session(ses);
 }
 
-static void send_intro(struct ms_ctl_session* ses)
-{
+static void send_intro(struct ms_ctl_session* ses) {
+    /* for now it's just hardcoded useless shit... */
+    static const char into_msg[] = 
+        "Auth no\n"
+        "Mode txt\n";
+    fputs(into_msg, ses->stream);
+    send_commit(ses);
 }
 
 static void listen_fd_handler(struct sue_fd_handler *h, int r, int w, int x)
@@ -302,4 +310,45 @@ void dispose_control_receiver(struct ms_control_receiver *crx)
     close(crx->fdh.fd);
     if(crx->path)
         free(crx->path);
+}
+
+void ctl_handle_shutdown(struct ms_ctl_session* ses)
+{
+    log_msg(llv_normal,
+        "Shutting down on command from the control console");
+    sue_sel_break(ses->master->the_selector);
+}
+
+int ctl_handle_bind(struct ms_ctl_session* ses, int iport)
+{
+    struct ms_control_receiver* crx = ses->master;
+    if(ses->bound) {
+        log_msg(llv_normal,
+                "%s: trying to bind but already bound",
+                ses_description(ses));
+
+        ms_ctl_errno = ctl_err_bind_already_bound;
+        return 0;
+    }
+    if(iport <= 0 || iport >= ms_conn_iport_max) {
+        log_msg(llv_normal,
+                "%s: trying to bind to invalid port",
+                ses_description(ses), iport);
+        ms_ctl_errno = ctl_err_invalid_arg;
+        return 0;
+    }
+    if(crx->ports[iport]) {
+        log_msg(llv_normal,
+                "%s: trying to bind to already accupied port (%d)",
+                ses_description(ses), iport);
+        ms_ctl_errno = ctl_err_bind_port_occupied;
+        return 0;
+    }
+    log_msg(llv_normal,
+            "%s: session bound to iport (%d)",
+            ses_description(ses), iport);
+    ms_ctl_errno = ctl_err_ok;
+    ses->bound = 1;
+    crx->ports[iport] = ses;
+    return 1;
 }

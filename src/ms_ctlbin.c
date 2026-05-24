@@ -7,9 +7,10 @@ static void parse_bind(struct ms_cparser* cp)
     unsigned int* rd_pos = &cp->buf_rd_pos;
     unsigned char* buf = cp->buf;
     cp->cur_cmd.u.bind.iport = buf[*rd_pos];
+    ctl_handle_bind(cp->the_session, cp->cur_cmd.u.bind.iport);
 }
 
-static void bin_handle_ccmd(struct ms_cparser *cp)
+static void bin_parse_ccmd(struct ms_cparser *cp)
 {
     switch (cp->cur_cmd.type) {
     case ccmd_bind:
@@ -18,8 +19,6 @@ static void bin_handle_ccmd(struct ms_cparser *cp)
     case ccmd_stat:
     case ccmd_send:
     case ccmd_recv:
-        return;
-    case ccmd_close:
         return;
     default:
     case ccmd_undef:
@@ -35,7 +34,6 @@ static unsigned int wanted_from_type(int type)
     case ccmd_stat: return ccmd_stat_hlen;
     case ccmd_send: return ccmd_send_hlen;
     case ccmd_recv: return ccmd_recv_hlen;
-    case ccmd_close: return ccmd_close_hlen;
 
     default:
     case ccmd_undef:
@@ -64,7 +62,7 @@ static int parse_prefix(struct ms_cparser* cp, unsigned int* used)
                 ses_description(cp->the_session));
         return cpres_fatal;
     }
-    cp->wanted_len = want;
+    cp->bin_wanted_len = want;
     return cpres_continue;
 }
 
@@ -78,8 +76,6 @@ static int parse_header(struct ms_cparser* cp, unsigned int* used)
     case ccmd_send:
     case ccmd_recv:
         return cpres_fatal;
-    case ccmd_close:
-        return cpres_finished;
     default:
     case ccmd_undef:
         return cpres_fatal;
@@ -97,7 +93,7 @@ static int bin_parse_block(struct ms_cparser* cp, unsigned int* used)
 {
     unsigned int available = cp->buf_filled - cp->buf_rd_pos;
 
-    if(available < cp->wanted_len)
+    if(available < cp->bin_wanted_len)
         return cpres_want_more;
 
     switch (cp->state) {
@@ -135,7 +131,7 @@ int binary_read(struct ms_cparser* cp, unsigned int* used)
         case cpres_continue:
             break;
         case cpres_finished:
-            bin_handle_ccmd(cp);
+            bin_parse_ccmd(cp);
             ms_cparser_reset(cp);
             break;
         }

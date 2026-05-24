@@ -6,11 +6,7 @@
 #include "log.h"
 #include "ms_ctlpar.h"
 #include "ms_ctlbin.h"
-
-int txt_read(struct ms_cparser* cp, unsigned int* used)
-{
-
-}
+#include "ms_ctltxt.h"
 
 int ms_cparser_init(struct ms_cparser* cp, struct ms_ctl_session* ses)
 {
@@ -34,7 +30,7 @@ void ms_cparser_reset(struct ms_cparser* cp)
     ms_cparser_cleanup(cp);
     cp->cur_cmd.type = ccmd_undef;
     cp->state = cps_reading_prefix;
-    cp->wanted_len = 2;
+    cp->bin_wanted_len = 2;
 }
 
 int ms_ctlparser_read(struct ms_cparser* cp)

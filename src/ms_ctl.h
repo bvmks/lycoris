@@ -43,6 +43,16 @@ struct ms_control_receiver {
     char *path;
 };
 
+enum ctl_errors {
+    ctl_err_ok = 0,
+
+    ctl_err_invalid_arg = 1,
+
+    ctl_err_bind_port_occupied = 101,
+    ctl_err_bind_already_bound,
+};
+
+extern int ms_ctl_errno;
 
 const char* ses_description(const struct ms_ctl_session* ses);
 
@@ -52,5 +62,11 @@ launch_control_receiver(struct sue_event_selector *sel,
                         struct ms_udp_receiver *rx);
 
 void dispose_control_receiver(struct ms_control_receiver *crx);
+
+void ctl_handle_shutdown(struct ms_ctl_session* ses);
+
+/* bool */
+int ctl_handle_bind(struct ms_ctl_session* ses, int iport);
+void ctl_handle_stat(struct ms_ctl_session* ses, int iport);
 
 #endif

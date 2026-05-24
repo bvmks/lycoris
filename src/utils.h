@@ -7,4 +7,6 @@ int find_EOL(char** p);
 
 const char *decimal2a(unsigned int n);
 
+int str2integer(char* str, long long* llval);
+
 #endif

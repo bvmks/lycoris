@@ -29,3 +29,34 @@ const char *decimal2a(unsigned int n)
 
     return p;
 }
+
+static int iswhitespace(int c)
+{
+    return c == ' ' || c == '\t' || c == '\r' || c == '\n';
+}
+
+int str2integer(char* str, long long* llval)
+{
+    int s = 0;
+    long long m = 0;
+    const char *p = str;
+    while(*p && iswhitespace(*p))
+        p++;
+    if(*p == '-' || *p == '+') {
+        s = (*p == '-');
+        p++;
+    }
+    while(*p && !iswhitespace(*p)) {
+        if(*p < '0' || *p > '9')
+            return 0;
+        m = m * 10 + (*p - '0');
+        p++;
+    }
+    while(*p && iswhitespace(*p))
+        p++;
+    if(!*p) {
+        *llval = s ? -m : m;
+        return 1;
+    }
+    return 0;
+}

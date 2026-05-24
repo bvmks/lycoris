@@ -1409,18 +1409,24 @@ void handle_assoc_process(struct ms_udp_receiver *rx,
     }
 }
 
-static void do_rx_report(struct ms_udp_receiver *rx,
-                         report_callback f, void *userdata)
+static void do_rx_report(struct ms_udp_receiver* rx,
+                         report_callback f, void* userdata)
 {
     log_msg(llv_debug, "do_rx_report called");
-    f(userdata, "running ms node with id:%s",
+    f(userdata, "running MS node with id: %s",
                 hexdata2a(rx->comctx.identity->node_id, node_id_size));
     peers_report(rx->peers, f, userdata);
 }
 
-void udp_receiver_report(struct ms_udp_receiver *rx)
+void udp_receiver_report(struct ms_udp_receiver* rx)
 {
     int level = llv_normal | llv_private;
     log_msg(llv_normal, "got SIGUSR1");
     do_rx_report(rx, report_to_log_cb, &level);
+}
+
+void udp_receiver_streamrep(struct ms_udp_receiver* rx,
+                            void* stream)
+{
+    do_rx_report(rx, report_to_stream_cb, stream);
 }

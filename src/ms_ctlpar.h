@@ -6,14 +6,6 @@
 struct ms_ctl_session;
 
 
-enum ms_ccmd_header_len {
-    ccmd_bind_hlen =  1,  /* 1 byte for port */
-    ccmd_close_hlen = 1, /* 1 byte for code */
-
-    ccmd_stat_hlen = 0,
-    ccmd_send_hlen = 0,
-    ccmd_recv_hlen = 0,
-};
 
 enum ms_ctlparser_state {
     cps_init = -1,
@@ -49,7 +41,14 @@ enum ccmd_type {
     ccmd_stat,
     ccmd_send,
     ccmd_recv,
-    ccmd_close,
+};
+
+enum ms_ccmd_header_len {
+    ccmd_bind_hlen =  1,  /* 1 byte for port */
+
+    ccmd_stat_hlen = 0,
+    ccmd_send_hlen = 0,
+    ccmd_recv_hlen = 0,
 };
 
 struct ms_ccmd_parsed {
@@ -87,7 +86,11 @@ struct ms_ccmd_parsed {
 struct ms_cparser {
     int binary_mode;
     int state;
-    unsigned int wanted_len;
+
+    unsigned int bin_wanted_len;
+
+    unsigned int txt_skipping;
+
     struct ms_ctl_session* the_session;
 
     unsigned char buf[parser_inner_buf_size];

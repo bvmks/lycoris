@@ -195,13 +195,12 @@ int main(int argc, char** argv)
     struct ms_control_receiver* ctl_receiver = NULL;
     int res;
 
-    setup_stderr_log(llv_debug);
+    setup_stderr_log(llv_debug | llv_private);
 
     process_cmdline(argc, argv, &args);
 
-
     log_msg(llv_alert, 
-            "Starting ms node vers. " MS_VERSION 
+            "Starting MS node vers. " MS_VERSION 
             " (compiled " __DATE__ ")");
 
     sue_alloc_init_default();
@@ -234,7 +233,6 @@ int main(int argc, char** argv)
         node_cfg->listen_port = def_port;
 
     dump_configuration_to_log(node_cfg, llv_debug);
-
 
     receiver = make_udp_receiver(&selector, node_cfg);
     if(!receiver) {

@@ -1,5 +1,5 @@
-#ifndef _MS_COMM_PARSER_H
-#define _MS_COMM_PARSER_H
+#ifndef _MS_BINCON_PARSER_H
+#define _MS_BINCON_PARSER_H
 
 struct ms_cparser;
 
