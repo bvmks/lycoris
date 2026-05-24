@@ -1088,6 +1088,7 @@ static void handle_enc_post(struct ms_udp_receiver* rx,
     if(!crx->ports[dst_iport]) {
         log_msg(llv_debug, "ignoring post from %s (dst iport not bound))",
                 peer_description(peer));
+        return;
     }
 
     ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload, len);

@@ -242,7 +242,7 @@ static void txt_handle_send(struct ms_ctl_session *ses, char **argv)
             fputs("* ERROR messages must be specified \n", ses->stream);
             return;
         }
-        res = ctl_handle_send(ses, peer, dst_iport, argv[4], strlen(argv[4]));
+        res = ctl_handle_send(ses, peer, dst_iport, argv[4], strlen(argv[4]) + 1);
     }else
     if(0 == strcmp(argv[3], "file")) {
         fputs("* ERROR files sending not supported yet\n", ses->stream);
