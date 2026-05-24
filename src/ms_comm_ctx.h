@@ -54,6 +54,7 @@ enum {
 
     ms_cmd_keep_alive    = 0x2C,        /* encrypted */
     ms_cmd_im_alive      = 0x2D,
+    ms_cmd_post          = 0xD1,
 
     ms_cmd_data          = 0xDA,
 

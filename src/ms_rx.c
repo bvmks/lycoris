@@ -472,9 +472,19 @@ static void send_enc_keepalive(struct ms_udp_receiver* rx, struct ms_peer* peer)
 void send_post(struct ms_udp_receiver* rx,
                struct ms_peer* peer,
                int src_iport, int dst_iport,
-               const unsigned char* payload, int payload_len)
+               const void* payload, long long payload_len)
 {
+    unsigned char buf[ms_max_payload + 1];
+    if(payload_len > ms_max_payload - 2) {
+        log_msg(llv_debug, "post payload too long (%s)", payload_len);
+        return;
+    }
 
+    buf[0] = ms_cmd_post;
+    buf[1] = src_iport;
+    buf[2] = dst_iport;
+    memcpy(&buf[4], payload, payload_len);
+    send_encrypted(rx, peer, buf, payload_len + 3);
 }
 
 
@@ -1040,7 +1050,7 @@ static void handle_enc_keepalive(struct ms_udp_receiver* rx,
                                 struct ms_peer* peer)
 {
     log_msg(llv_debug, "received keepalive from %s",
-                                peer_description(peer));
+            peer_description(peer));
 #if 0 /* if they need they will send us keepalive */
     send_enc_imalive(rx, peer);
 #endif
@@ -1050,7 +1060,15 @@ static void handle_enc_imalive(struct ms_udp_receiver* rx,
                                struct ms_peer* peer)
 {
     log_msg(llv_debug, "received i_am_alive from %s",
-                                peer_description(peer));
+            peer_description(peer));
+}
+
+static void handle_enc_post(struct ms_udp_receiver* rx,
+                            struct ms_peer* peer,
+                            const unsigned char* data, int len)
+{
+    log_msg(llv_debug, "received post from %s",
+            peer_description(peer));
 }
 
 static void handle_enc_data(struct ms_udp_receiver* rx,
@@ -1058,7 +1076,7 @@ static void handle_enc_data(struct ms_udp_receiver* rx,
                             const unsigned char* data, int len)
 {
     log_msg(llv_debug, "received data from %s",
-                                peer_description(peer));
+            peer_description(peer));
 }
 
 
@@ -1143,6 +1161,9 @@ static void handle_encrypted_dgram(struct ms_udp_receiver* rx,
         break;
     case ms_cmd_im_alive:
         handle_enc_imalive(rx, peer);
+        break;
+    case ms_cmd_post:
+        handle_enc_post(rx, peer, ct+1, ctlen-1);
         break;
     case ms_cmd_data:
         handle_enc_data(rx, peer, ct+1, ctlen-1);
