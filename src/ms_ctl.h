@@ -26,7 +26,6 @@ struct ms_ctl_session {
 
     char to_close;
 
-    struct ms_ccmd* cur_cmd;
     struct ms_cparser parser;
 };
 

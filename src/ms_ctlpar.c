@@ -1,318 +1,83 @@
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
-#include "trie.h"
 #include "ms_ctl.h"
 #include "log.h"
+#include "ms_ctlpar.h"
+#include "ms_ctlbin.h"
 
-
-static int txt_parse_bind_ccmd(struct ms_cparser* cp, const char* args) {
-    struct ms_ctl_session* ses = cp->the_session;
-    int bind_iport = ms_conn_iport_undef;
-    cp->target->type = ccmd_bind;
-
-    if(sscanf(args, " %d \n", &bind_iport) < 1) {
-        log_msg(llv_debug, 
-                "%s: BIND command doesn't have a valid argument",
-                ses_description(ses));
-        return ctlparser_res_error;
-    }
-    cp->target->u.bind.iport = bind_iport;
-    return ctlparser_res_finished;
-}
-
-static int txt_parse_chmod_ccmd(struct ms_cparser* cp, const char* args) {
-    struct ms_ctl_session* ses = cp->the_session;
-    struct ms_ccmd* tar = cp->target;
-    char mode_str[16];
-
-    if(sscanf(args, " %15s \n", mode_str) < 1) {
-        log_msg(llv_debug, 
-                "%s: CHMOD command doesn't have a valid argument",
-                ses_description(ses));
-        return ctlparser_res_error;
-    }
-    tar->type = ccmd_chmod;
-
-    if(0 == strcmp(mode_str, "BINARY")) {
-        tar->u.chmod.new_mode = ctlparser_m_binary;
-        return ctlparser_res_finished;
-    }
-    else if(0 == strcmp(mode_str, "TEXT")) {
-        tar->u.chmod.new_mode = ctlparser_m_text;
-        return ctlparser_res_finished;
-    }
-    else {
-        tar->u.chmod.new_mode = ctlparser_m_undef;
-        return ctlparser_res_error;
-    }
-    return ctlparser_res_finished;
-}
-
-static int txt_parse_close_ccmd(struct ms_cparser* cp, const char* args) {
-    struct ms_ccmd* tar = cp->target;
-
-    tar->type = ccmd_close;
-    tar->u.close.code = 0;
-    return ctlparser_res_finished;
-}
-
-typedef int (*ccmd_cb)(struct ms_cparser*, const char*);
-
-enum txt_ccmd_type {
-    tcmd_main = 0,
-    tcmd_sub = 128,
-    tcmd_opt = 256,
-};
-
-struct txt_word {
-    int ccmd;
-    int type;
-    char* name;
-    ccmd_cb cb;
-};
-
-static struct txt_word txt_words[] = {
-    {ccmd_bind,  tcmd_main,          "BIND",  &txt_parse_bind_ccmd},
-    {ccmd_chmod, tcmd_main,          "CHMOD", &txt_parse_chmod_ccmd},
-    {ccmd_stat,  tcmd_main,          "STAT",  NULL},
-
-    {ccmd_send,  tcmd_main,          "SEND",  NULL},
-    {ccmd_send,  tcmd_sub,           "DATA",  NULL},
-    {ccmd_send,  tcmd_opt,           "LEN",   NULL},
-
-    {ccmd_close, tcmd_main,          "CLOSE", &txt_parse_close_ccmd},
-};
-
-static struct trie cmd_trie;
-
-struct ms_ccmd* make_cmd()
+int txt_read(struct ms_cparser* cp, unsigned int* used)
 {
-    struct ms_ccmd* res = malloc(sizeof(*res));
-    memset(res, 0, sizeof(*res));
-    res->type = ccmd_undef;
-    res->parse_failed = 0;
-    return res;
+
 }
 
-void fill_cmd_trie()
-{
-    int i, total_cmds;
-    void** slot;
-    static int t = 1;
-
-    if(!t)
-        return;
-
-    trie_init(&cmd_trie);
-
-    total_cmds = sizeof(txt_words) / sizeof(struct txt_word);
-    for(i = 0; i < total_cmds; i++) {
-        slot = trie_provide(&cmd_trie, txt_words[i].name);
-        *slot = txt_words[i].cb;
-    }
-    t = 0;
-}
-
-void clear_cmd_trie() {
-    trie_clear(&cmd_trie);
-}
-
-int ms_cparser_init(struct ms_cparser* cp, struct ms_ccmd* target,
-                    struct ms_ctl_session* ses,
-                    int start_mode)
+int ms_cparser_init(struct ms_cparser* cp, struct ms_ctl_session* ses)
 {
     memset(cp, 0, sizeof(*cp));
-    cp->target = target;
-    cp->mode = start_mode;
     cp->the_session = ses;
+    cp->binary_mode = 0;
     ms_cparser_reset(cp);
     return 1;
 }
 
-
-static void cleanup_cmd(struct ms_ccmd* cmd)
+void ms_cparser_cleanup(struct ms_cparser* cp)
 {
-    switch (cmd->type) {
-    case ccmd_undef: 
-        break;
-    case ccmd_bind: 
-        cmd->u.bind.iport = ms_conn_iport_undef;
-        break;
-    case ccmd_chmod: 
-        cmd->u.chmod.new_mode = ctlparser_m_undef;
-        break;
-    case ccmd_stat: 
-        cmd->u.stat.addr.addr_resolve_type = stat_resolve_undef;
-        break;
-    case ccmd_send: 
-        cmd->u.send.addr.addr_resolve_type = stat_resolve_undef;
-        if(cmd->u.send.body)
-            free(cmd->u.send.body);
-        cmd->u.send.body = NULL;
-        cmd->u.send.body_bytes_read = 0;
-        cmd->u.send.body_len = 0;
-        break;
-    case ccmd_close: 
-        cmd->u.close.code = 0;
-        break;
-    default:
-        log_msg(llv_alert, " cleanup_cmd: unexpected value for control command type (%d) (BUG)", cmd->type);
-        break;
+    if(cp->cur_cmd.type == ccmd_send && cp->cur_cmd.u.send.body) {
+        free(cp->cur_cmd.u.send.body);
+        cp->cur_cmd.u.send.body = NULL;
     }
-
-}
-
-void cmd_init(struct ms_ccmd* cmd)
-{
-    cleanup_cmd(cmd);
-    cmd->type = ccmd_undef;
-    cmd->parse_failed = 0;
-}
-
-void dispose_cmd(struct ms_ccmd* cmd)
-{
-    cleanup_cmd(cmd);
-    free(cmd);
 }
 
 void ms_cparser_reset(struct ms_cparser* cp)
 {
-    cp->state = ctlparser_s_init;
-    cp->txt_the_cur_line = NULL;
-    if(cp->target)
-        cmd_init(cp->target);
+    ms_cparser_cleanup(cp);
+    cp->cur_cmd.type = ccmd_undef;
+    cp->state = cps_reading_prefix;
+    cp->wanted_len = 2;
 }
 
-static const char* mode2a (enum ms_ctlparser_mode mode) {
-    switch (mode) {
-    case ctlparser_m_undef:  return "UNDEF";
-    case ctlparser_m_text:   return "TEXT";
-    case ctlparser_m_binary: return "BINARY";
-    }
-    return "UNKNOWN";
-}
-
-void ms_cparser_switch_mode(struct ms_cparser* cp, int new_mode)
+int ms_ctlparser_read(struct ms_cparser* cp)
 {
-    struct ms_ctl_session* ses = cp->the_session;
-    log_msg(llv_debug, 
-            "%s: switching mode to %s",
-            ses_description(ses), mode2a(new_mode));
-    cp->mode = new_mode;
-}
+    unsigned int rd, used;
+    int parser_res;
 
-void ms_cparser_cleanup(struct ms_cparser* cp)
-{
-    /* that's good */
-}
-
-static long long find_block(struct ms_cparser* cp) {
-    while(cp->buf_p < cp->buf_used) {
-        if(cp->buf[cp->buf_p] == '\n' &&
-           cp->buf_p > 0 &&
-           cp->buf[cp->buf_p - 1] == '\n') 
-        {
-            cp->buf_p++;
-            return cp->buf_p;
-        }
-        cp->buf_p++;
-    }
-    return 0;
-}
-
-static int inner_parse_txt(struct ms_cparser* parser,
-                           long long* readed)
-{
-    struct ms_ctl_session* ses = parser->the_session;
-    ccmd_cb cb;
-    int cmd_len, block_len;
-
-    *readed = find_block(parser);
-    if(!*readed)
-        return ctlparser_res_want_more;
-
-    block_len = parser->buf_p - 2; 
-    if(block_len <= 0) {
-        log_msg(llv_alert, "%s: empty control command block",
-                ses_description(ses), parser->buf);
-        return ctlparser_res_error;
-    }
-    
-    parser->buf[block_len] = 0;
-    cb = trie_get_with_len(&cmd_trie, (char*)parser->buf, &cmd_len);
-    if(!cb) {
-        log_msg(llv_debug, 
-                "%s: unknown control command", 
-                ses_description(ses));
-        return ctlparser_res_error;
-    }
-    return (*cb)(parser, (char*)parser->buf + cmd_len);
-}
-
-int ms_ctlparser_read(struct ms_cparser* cp, int fd)
-{
-    long long rd;
-    long long parser_readed;
-    int parser_res = ctlparser_res_fatal;
-
-    switch (cp->state) {
-    case ctlparser_s_fin:
-        log_msg(llv_alert, 
-                "ms_ctlparser_read: called with 'fin' state (BUG)");
+    if(cp->state == cps_fin) {
+        log_msg(llv_alert, "ms_ctlparser_read: called with 'fin' state (BUG)");
         return cp->state;
     }
 
-    if (cp->buf_used < sizeof(cp->buf)) {
-        rd = read(fd, cp->buf + cp->buf_used, sizeof(cp->buf) - cp->buf_used);
-        if (rd <= 0) {
-            if(rd == -1)
+    if(cp->buf_filled < sizeof(cp->buf)) {
+        rd = read(cp->the_session->fdh.fd, 
+                  cp->buf + cp->buf_filled, sizeof(cp->buf) - cp->buf_filled);
+        if(rd <= 0) {
+            if(rd == -1) {
                 log_perror(llv_alert, "ms_ctlparser_read", "read");
-            return ctlparser_res_conn_closed; 
+            }
+            return cpres_conn_closed; 
         }
-        cp->buf_used += rd;
+        cp->buf_filled += rd;
+    }
+    
+    if(cp->binary_mode)
+        parser_res = binary_read(cp, &used);
+    else
+        parser_res = txt_read(cp, &used);
+
+    if(used > 0) {
+        memmove(cp->buf, cp->buf + used, cp->buf_filled - used);
+        cp->buf_filled -= used;
+        cp->buf_rd_pos -= used;
     }
 
-    parser_readed = 0;
-    switch (cp->mode) {
-    case ctlparser_m_text:
-        parser_res = inner_parse_txt(cp, &parser_readed);
-        break;
-    case ctlparser_m_binary:
-        log_msg(llv_alert, "BINARY mode not supported yet");
-        cp->state = ctlparser_s_fin;
-        return ctlparser_res_fatal;
-    default: 
-        log_msg(llv_alert, 
-                "ms_ctlparser_read: unexpected value for parser mode (%d) (BUG)",
-                cp->mode);
-        return ctlparser_res_fatal;
-    }
-
-    if(parser_res == ctlparser_res_error)
-        cp->target->parse_failed = 1;
-
-    switch (parser_res) {
-    case ctlparser_res_fatal:
-    case ctlparser_res_error:
-    case ctlparser_res_finished:
-        cp->state = ctlparser_s_fin;
-    }
-
-    if(parser_readed > 0) {
-        memmove(cp->buf, cp->buf + parser_readed, cp->buf_used - parser_readed);
-        cp->buf_used -= parser_readed;
-        cp->buf_p -= parser_readed;
-    }
-
-    if(cp->buf_used == sizeof(cp->buf) && 0 == parser_readed) {
-        log_msg(llv_alert, 
-                "%s: ms_cparser_read: buffer overflow!",
+    if(cp->buf_filled == sizeof(cp->buf) && parser_res == cpres_want_more) {
+        log_msg(llv_alert, "%s: ms_cparser_read: buffer overflow!", 
                 ses_description(cp->the_session));
-        return ctlparser_res_fatal;
+        return cpres_fatal;
     }
 
     return parser_res;
 }
+
+
+
