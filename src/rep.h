@@ -6,4 +6,7 @@ typedef void (*report_callback)(void *, const char *, ...);
     /* userdata must be int*, pointing to the logging level value */
 void report_to_log_cb(void *userdata, const char *fmt, ...);
 
+    /* userdata must be the stream of type FILE*  */
+void report_to_stream_cb(void *ud, const char *fmt, ...);
+
 #endif

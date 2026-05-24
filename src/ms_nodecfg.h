@@ -2,6 +2,8 @@
 #define _MS_NODE_CFG_H
 
 #include <netinet/in.h>
+#include <stdio.h>
+
 #include "crypdf.h"
 
 enum {
@@ -17,8 +19,7 @@ enum {peer_name_length_limit = 60};
 
 enum ms_peer_type {
     ptp_undef = -1,
-    ptp_peer,
-    ptp_server,
+    ptp_default,
     ptp_mynode,
 };
 
@@ -67,5 +68,10 @@ void settle_kndb_dir(struct ms_node_cfg* cfg);
 void settle_ctlsock_path(struct ms_node_cfg* cfg);
 
 void settle_peerscfg_path(struct ms_node_cfg* cfg);
+
+
+void dump_configuration_to_log(struct ms_node_cfg *cfg, int level);
+
+void dump_configuration_to_stream(struct ms_node_cfg *cfg, FILE *stream);
 
 #endif

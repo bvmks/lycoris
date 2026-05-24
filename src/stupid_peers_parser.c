@@ -102,8 +102,7 @@ struct peer_conf* parse_peers_file(const char* filename)
                 log_msg(llv_alert, "peer_parser: missing value for 'type' at line %d", line_num);
                 continue;
             }
-            if (strcmp(val, "peer") == 0) current->type = ptp_peer;
-            else if (strcmp(val, "server") == 0) current->type = ptp_server;
+            if (strcmp(val, "default") == 0) current->type = ptp_default;
             else if (strcmp(val, "mynode") == 0) current->type = ptp_mynode;
             else {
                 log_msg(llv_alert, "peer_parser: unknown peer type '%s' at line %d", val, line_num);

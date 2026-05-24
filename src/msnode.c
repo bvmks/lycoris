@@ -233,6 +233,7 @@ int main(int argc, char** argv)
     else
         node_cfg->listen_port = def_port;
 
+    dump_configuration_to_log(node_cfg, llv_debug);
 
 
     receiver = make_udp_receiver(&selector, node_cfg);
