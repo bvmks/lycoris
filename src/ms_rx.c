@@ -486,8 +486,9 @@ void send_enc_post(struct ms_udp_receiver* rx,
     buf[0] = ms_cmd_post;
     buf[1] = src_iport;
     buf[2] = dst_iport;
-    memcpy(&buf[3], payload, payload_len);
-    send_encrypted(rx, peer, buf, payload_len + 3);
+    *((unsigned short*)&buf[3]) = htons(payload_len);
+    memcpy(&buf[5], payload, payload_len);
+    send_encrypted(rx, peer, buf, payload_len + 5);
 }
 
 
@@ -1073,6 +1074,7 @@ static void handle_enc_post(struct ms_udp_receiver* rx,
     struct ms_control_receiver* crx = rx->the_crx;
     int src_iport = payload[0];
     int dst_iport = payload[1];
+    unsigned short recvd_len = ntohs(*((unsigned short*)&payload[2]));
 
     if(src_iport < 0 || src_iport >= ms_ctl_iport_max) {
         log_msg(llv_debug, "ignoring post dgram from %s (invalid src iport)",
@@ -1091,7 +1093,7 @@ static void handle_enc_post(struct ms_udp_receiver* rx,
         return;
     }
 
-    ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload + 2, len - 2);
+    ctl_add_recvd(crx->ports[dst_iport], src_iport, dst_iport, payload + 3, recvd_len);
 }
 
 static void handle_enc_data(struct ms_udp_receiver* rx,

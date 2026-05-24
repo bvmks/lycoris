@@ -430,7 +430,7 @@ void ctl_add_recvd(struct ms_ctl_session* ses,
     msg->src_iport = src_iport;
     msg->payload_len = len;
     msg->recv_time = 0;
-    msg->payload = malloc(sizeof(msg->payload));
+    msg->payload = malloc(len);
     memcpy(msg->payload, payload, len);
 
     msg->next = NULL;

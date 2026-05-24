@@ -90,7 +90,8 @@ keep alive
 post
 25                  src iport
 26                  dst iport
-27..507             data
+27..28              data len
+29..507             data
 
 *********************
 establishing association 
